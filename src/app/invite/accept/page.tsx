@@ -1,0 +1,161 @@
+'use client';
+
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { CheckCircle2, Mail, TriangleAlert } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { LoadingSpinner } from '@/components/loading-spinner';
+import { ACTIVE_PLATFORM_STORAGE_KEY } from '@/context/platform-context';
+import { useAuth } from '@/hooks/use-auth';
+import { ApiError, apiClient } from '@/lib/api-client';
+import type { PlatformStaff } from '@/lib/types';
+
+type AcceptState = 'idle' | 'loading' | 'success' | 'error' | 'login-required';
+
+function InviteAcceptContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token')?.trim() ?? '';
+  const { isLoggedIn, loading: authLoading, user } = useAuth();
+
+  const [state, setState] = useState<AcceptState>('idle');
+  const [error, setError] = useState('');
+
+  const acceptInvitation = useCallback(async () => {
+    if (!token) {
+      setState('error');
+      setError('Token undangan tidak ditemukan. Periksa link yang diberikan Owner.');
+      return;
+    }
+
+    setState('loading');
+    setError('');
+
+    try {
+      const data = await apiClient<PlatformStaff>(`/platform-invitations/${token}/accept`, {
+        method: 'POST',
+      });
+      setState('success');
+
+      if (typeof localStorage !== 'undefined' && data.platformId) {
+        localStorage.setItem(ACTIVE_PLATFORM_STORAGE_KEY, data.platformId);
+      }
+
+      setTimeout(() => router.replace('/dashboard'), 2500);
+    } catch (err) {
+      setState('error');
+      setError(err instanceof ApiError ? err.message : 'Gagal menerima undangan. Silakan coba lagi.');
+    }
+  }, [token, router]);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!token) {
+      setState('error');
+      setError('Token undangan tidak ditemukan. Periksa link yang diberikan Owner.');
+      return;
+    }
+
+    if (!isLoggedIn) {
+      setState('login-required');
+      return;
+    }
+
+    if (state === 'idle') {
+      void acceptInvitation();
+    }
+  }, [authLoading, isLoggedIn, token, state, acceptInvitation]);
+
+  const loginHref = `/auth/login?next=${encodeURIComponent(`/invite/accept?token=${token}`)}`;
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-12">
+      <Card className="w-full max-w-md overflow-hidden py-0">
+        <div className="bg-primary px-6 py-8 text-center text-primary-foreground">
+          <Mail className="mx-auto h-8 w-8" />
+          <h1 className="mt-3 text-xl font-bold">Undangan Staff Platform</h1>
+          <p className="mt-1 text-sm opacity-80">Bagdja Novelo</p>
+        </div>
+
+        <CardContent className="space-y-4 px-6 py-8">
+          {(authLoading || state === 'loading') && (
+            <div className="flex flex-col items-center gap-3 py-6">
+              <LoadingSpinner />
+              <p className="text-sm text-muted-foreground">Memproses undangan…</p>
+            </div>
+          )}
+
+          {state === 'login-required' && (
+            <div className="space-y-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                Login dengan akun Bagdja untuk menerima undangan staff Platform.
+              </p>
+              <Button asChild className="w-full">
+                <Link href={loginHref}>Login untuk Lanjut</Link>
+              </Button>
+            </div>
+          )}
+
+          {state === 'success' && (
+            <div className="space-y-4 text-center">
+              <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" />
+              <div>
+                <p className="text-lg font-semibold text-emerald-600">Undangan diterima!</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {user?.email ? (
+                    <>
+                      Anda bergabung dengan akun <strong>{user.email}</strong>.
+                    </>
+                  ) : (
+                    'Anda berhasil bergabung ke Platform ini.'
+                  )}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">Mengalihkan ke dashboard…</p>
+              </div>
+              <Button asChild variant="secondary" className="w-full">
+                <Link href="/dashboard">Buka Dashboard</Link>
+              </Button>
+            </div>
+          )}
+
+          {state === 'error' && (
+            <div className="space-y-4 text-center">
+              <TriangleAlert className="mx-auto h-12 w-12 text-destructive" />
+              <p className="text-sm text-destructive">{error}</p>
+              {isLoggedIn ? (
+                <Button variant="secondary" className="w-full" onClick={() => acceptInvitation()}>
+                  Coba Lagi
+                </Button>
+              ) : (
+                <Button asChild className="w-full">
+                  <Link href={loginHref}>Login</Link>
+                </Button>
+              )}
+              <Button asChild variant="ghost" className="w-full">
+                <Link href="/">Kembali ke Beranda</Link>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default function InviteAcceptPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <LoadingSpinner />
+        </div>
+      }
+    >
+      <InviteAcceptContent />
+    </Suspense>
+  );
+}

@@ -1,0 +1,33 @@
+/**
+ * App base URL (without /auth/callback).
+ */
+export function getAppUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  }
+
+  const redirectUri = process.env.NEXT_PUBLIC_REDIRECT_URI ?? 'http://localhost:5022/auth/callback';
+  return redirectUri.replace(/\/auth\/callback\/?$/, '') || 'http://localhost:5022';
+}
+
+/**
+ * Bagdja Login (SSO UI) base URL.
+ */
+export function getLoginUrl(): string {
+  return (process.env.NEXT_PUBLIC_AUTH_URL ?? 'https://login.bagdja.com').replace(/\/$/, '');
+}
+
+/**
+ * Build SSO logout URL — clears bagdja_auth_token cookie (Domain=.bagdja.com,
+ * jadi berlaku lintas SEMUA produk Bagdja) lalu redirect balik ke app.
+ *
+ * Path-nya `/logout` di domain `login.bagdja.com` (bagdja-login,
+ * `app/logout/route.ts`) — BUKAN `/oauth/logout` di `auth.bagdja.com`
+ * (bagdja-auth, cuma redirect kosong tanpa clear cookie SSO sungguhan).
+ * Pola port persis `bagdja-novelo-app/src/lib/app-url.ts`.
+ */
+export function buildSsoLogoutUrl(returnTo?: string): string {
+  const url = new URL('/logout', getLoginUrl());
+  url.searchParams.set('redirect_uri', returnTo ?? getAppUrl());
+  return url.toString();
+}
