@@ -48,10 +48,9 @@ export interface CreatePlatformPayload {
   rendererKey?: string;
 }
 
-// Catatan: `PATCH /platforms/:id` TIDAK menerima `slug` (kontrak backend) —
-// slug hanya ditentukan saat create.
 export interface UpdatePlatformPayload {
   nama?: string;
+  slug?: string;
   logoUrl?: string;
   faviconUrl?: string;
   colors?: PlatformColors;
@@ -111,4 +110,45 @@ export interface DomainCheckResponse {
 
 export interface DeletedResponse {
   deleted: boolean;
+}
+
+export interface Genre {
+  id: string;
+  platformId: string | null;
+  nama: string;
+  slug: string;
+}
+
+export interface Category {
+  id: string;
+  platformId: string;
+  nama: string;
+  slug: string;
+  genres: Genre[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCategoryPayload {
+  nama: string;
+  slug: string;
+}
+
+export interface UpdateCategoryPayload {
+  nama?: string;
+  slug?: string;
+}
+
+export interface AttachGenrePayload {
+  genreId: string;
+}
+
+export interface CreateGenrePayload {
+  nama: string;
+  slug: string;
+}
+
+export interface UpdateGenrePayload {
+  nama?: string;
+  slug?: string;
 }
