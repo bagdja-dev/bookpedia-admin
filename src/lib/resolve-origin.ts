@@ -5,7 +5,7 @@ import { getAppUrl } from '@/lib/app-url';
 /**
  * Port verbatim dari `bagdja-auction-web/lib/resolve-origin.ts` (§4.2, 11
  * Sep 2026 — hardening independen dari custom-domain support, lihat
- * plan/novelo/execution-plan.md §4.2 & plan/architecture/custom-domain-setup.md).
+ * plan/bookpedia/execution-plan.md §4.2 & plan/architecture/custom-domain-setup.md).
  *
  * Bind address (alamat LISTEN container), bukan alamat yang bisa dituju
  * browser. Kalau salah satu ini yang ke-resolve, artinya kita sedang

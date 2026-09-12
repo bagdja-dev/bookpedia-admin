@@ -409,7 +409,7 @@ export default function PlatformSettingsPage() {
           <CardTitle>{isCreating ? 'Tambah Platform Baru' : `Edit Platform — ${form.nama || '...'}`}</CardTitle>
           <CardDescription>
             {isCreating
-              ? 'Isi detail Platform baru. Slug dipakai untuk subdomain publik (mis. {slug}.novelo.bagdja.com).'
+              ? 'Isi detail Platform baru. Slug dipakai untuk subdomain publik (mis. {slug}.bookpedia.bagdja.com).'
               : 'Perbarui pengaturan Platform ini. Slug bisa diubah manual, tapi hati-hati — itu mengubah subdomain publik yang sedang aktif.'}
           </CardDescription>
         </CardHeader>

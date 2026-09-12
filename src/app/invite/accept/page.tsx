@@ -78,7 +78,7 @@ function InviteAcceptContent() {
         <div className="bg-primary px-6 py-8 text-center text-primary-foreground">
           <Mail className="mx-auto h-8 w-8" />
           <h1 className="mt-3 text-xl font-bold">Undangan Staff Platform</h1>
-          <p className="mt-1 text-sm opacity-80">Bagdja Novelo</p>
+          <p className="mt-1 text-sm opacity-80">Bagdja Bookpedia</p>
         </div>
 
         <CardContent className="space-y-4 px-6 py-8">

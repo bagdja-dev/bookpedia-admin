@@ -3,8 +3,8 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
-  title: "Novelo Admin",
-  description: "Admin Console untuk Bagdja Novelo — kelola Platform, staff, dan domain custom",
+  title: "Bookpedia Admin",
+  description: "Admin Console untuk Bagdja Bookpedia — kelola Platform, staff, dan domain custom",
 };
 
 export default function RootLayout({

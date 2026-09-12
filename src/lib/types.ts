@@ -1,5 +1,5 @@
 /**
- * Kontrak `novelo-api` untuk Platform/Staff/Domain — persis
+ * Kontrak `bookpedia-api` untuk Platform/Staff/Domain — persis
  * `PlatformResponseDto`/`PlatformStaffResponseDto`/dst yang sudah dibangun
  * di backend (§4.1). JANGAN diubah sepihak dari sisi admin; kontrak ini
  * ditentukan backend.

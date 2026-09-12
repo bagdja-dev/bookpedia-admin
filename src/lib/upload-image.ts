@@ -2,7 +2,7 @@
  * Helper client-side untuk upload gambar (logo/favicon Platform) lewat route
  * BFF `app/api/uploads/image/route.ts` (bukan `apiClient`/`app/api/proxy`
  * biasa — itu JSON-only, di sini kirim `FormData`). Port persis dari
- * `bagdja-novelo-app/src/lib/upload-image.ts`.
+ * `bagdja-bookpedia-app/src/lib/upload-image.ts`.
  */
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB — sama dengan limit backend

@@ -7,7 +7,7 @@
  * `na_user` non-httpOnly menyimpan info user ringkas untuk client component
  * (lihat hooks/use-auth.ts).
  *
- * Prefix `na_` (bukan `ns_` seperti novelo-app) — dua app beda origin
+ * Prefix `na_` (bukan `ns_` seperti bookpedia-app) — dua app beda origin
  * (:5021 vs :5022) jadi cookie tidak akan bentrok bagaimanapun, tapi
  * penamaan berbeda tetap dipertahankan untuk kejelasan saat debug.
  */

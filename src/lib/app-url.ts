@@ -24,7 +24,7 @@ export function getLoginUrl(): string {
  * Path-nya `/logout` di domain `login.bagdja.com` (bagdja-login,
  * `app/logout/route.ts`) — BUKAN `/oauth/logout` di `auth.bagdja.com`
  * (bagdja-auth, cuma redirect kosong tanpa clear cookie SSO sungguhan).
- * Pola port persis `bagdja-novelo-app/src/lib/app-url.ts`.
+ * Pola port persis `bagdja-bookpedia-app/src/lib/app-url.ts`.
  */
 export function buildSsoLogoutUrl(returnTo?: string): string {
   const url = new URL('/logout', getLoginUrl());

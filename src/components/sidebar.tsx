@@ -51,7 +51,7 @@ export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: Sideb
               <BookOpen className="h-4 w-4" />
             </div>
             <span className={cn('text-sm font-bold tracking-tight', collapsed && 'lg:hidden')}>
-              Novelo Admin
+              Bookpedia Admin
             </span>
           </div>
           <button

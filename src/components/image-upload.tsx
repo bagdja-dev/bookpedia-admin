@@ -22,7 +22,7 @@ interface ImageUploadProps {
 
 /**
  * Upload gambar generik (logo/favicon Platform) — port dari
- * `bagdja-novelo-app/src/components/cover-image-upload.tsx` (dulu khusus
+ * `bagdja-bookpedia-app/src/components/cover-image-upload.tsx` (dulu khusus
  * cover Library/Book), digeneralisasi namanya karena di sini dipakai untuk
  * logo & favicon Platform. Lihat `lib/upload-image.ts` untuk kontrak
  * `POST /api/uploads/image`.

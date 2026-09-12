@@ -1,8 +1,8 @@
 {
-  "name": "bagdja-novelo-admin",
+  "name": "bagdja-bookpedia-admin",
   "version": "0.1.0",
   "private": true,
-  "description": "Admin Console untuk Bagdja Novelo — CRUD Platform, staff invite, domain verification (Next.js App Router + shadcn/ui). Dipakai tim Bagdja internal, port dari bagdja-auction-admin.",
+  "description": "Admin Console untuk Bagdja Bookpedia — CRUD Platform, staff invite, domain verification (Next.js App Router + shadcn/ui). Dipakai tim Bagdja internal, port dari bagdja-auction-admin.",
   "scripts": {
     "dev": "next dev -p 5022 --webpack",
     "build": "next build --webpack",

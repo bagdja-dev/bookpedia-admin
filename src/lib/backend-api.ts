@@ -1,12 +1,11 @@
 /**
- * Server-side helper to call `novelo-api` (NestJS) with session token from
+ * Server-side helper to call `bookpedia-api` (NestJS) with session token from
  * httpOnly cookie. Dipakai HANYA oleh Route Handler BFF proxy
  * (`app/api/proxy/[...path]/route.ts`) — token JWT tidak pernah dikirim ke
  * browser.
  */
+import { getApiBase } from './api-base';
 import { getSession } from './session';
-
-const API_BASE = process.env.NEXT_PUBLIC_NOVELO_API_URL ?? 'http://localhost:5020';
 
 export async function backendFetch<T = unknown>(
   path: string,
@@ -28,7 +27,7 @@ export async function backendFetch<T = unknown>(
   try {
     // `cache: 'no-store'` wajib — tanpa ini, Next.js App Router men-cache GET
     // fetch ke API (Data Cache) meski route handler pemanggilnya dynamic.
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetch(`${getApiBase()}${path}`, {
       ...options,
       headers,
       cache: 'no-store',

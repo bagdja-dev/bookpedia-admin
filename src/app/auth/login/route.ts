@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
 
   // TIDAK pakai forceLogin — silent-SSO across produk Bagdja adalah
-  // perilaku yang diharapkan (lihat komentar sama di novelo-app).
+  // perilaku yang diharapkan (lihat komentar sama di bookpedia-app).
   const authorizeUrl = buildAuthorizeUrl(stateId, codeChallenge);
   return NextResponse.redirect(authorizeUrl);
 }

@@ -29,7 +29,7 @@ const eslintConfig = defineConfig([
       // eslint-config-next 16 menaikkan react-hooks ke versi yang menandai
       // pola "fetch-on-mount" (useEffect(() => { void refresh() }, [refresh]))
       // sebagai error — padahal ini pola idiomatik yang sama persis dipakai
-      // di bagdja-novelo-app/bagdja-auction-admin. Turunkan ke warning
+      // di bagdja-bookpedia-app/bagdja-auction-admin. Turunkan ke warning
       // supaya tidak memblokir build, bukan matikan total.
       "react-hooks/set-state-in-effect": "warn",
     },

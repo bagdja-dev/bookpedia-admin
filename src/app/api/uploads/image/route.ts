@@ -4,15 +4,14 @@
  * itu membaca body dengan `request.text()` yang akan merusak
  * `multipart/form-data` biner.
  *
- * Port persis dari `bagdja-novelo-app/src/app/api/uploads/image/route.ts`:
+ * Port persis dari `bagdja-bookpedia-app/src/app/api/uploads/image/route.ts`:
  * baca `FormData` masuk, bangun ULANG `FormData` baru, forward ke backend
- * Novelo API dengan Bearer token dari session cookie server-side.
+ * Bookpedia API dengan Bearer token dari session cookie server-side.
  */
 import { NextRequest, NextResponse } from 'next/server';
 
+import { getApiBase } from '@/lib/api-base';
 import { getSession } from '@/lib/session';
-
-const API_BASE = process.env.NEXT_PUBLIC_NOVELO_API_URL ?? 'http://localhost:5020';
 
 export async function POST(request: NextRequest) {
   const { token } = await getSession();
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/uploads/image`, {
+    const res = await fetch(`${getApiBase()}/uploads/image`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: outgoing,

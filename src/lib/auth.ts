@@ -7,11 +7,11 @@
  *   3. Auth redirects back with ?code=…&state=…
  *   4. Exchange code + code_verifier → access_token (server-side)
  *
- * Pola diadaptasi persis dari `bagdja-novelo-app/src/lib/auth.ts`. Dipakai
- * `NEXT_PUBLIC_CLIENT_ID` yang SAMA dengan `bagdja-novelo-app` (keputusan
+ * Pola diadaptasi persis dari `bagdja-bookpedia-app/src/lib/auth.ts`. Dipakai
+ * `NEXT_PUBLIC_CLIENT_ID` yang SAMA dengan `bagdja-bookpedia-app` (keputusan
  * 11 Sep 2026 — hindari registrasi client_app OAuth baru; ownership
  * Owner/Staff dikontrol `PlatformAccessGuard` di backend lewat
- * `CLIENT_APP_ID=bagdja-novelo`, terpisah dari client_id OAuth ini).
+ * `CLIENT_APP_ID=bagdja-bookpedia`, terpisah dari client_id OAuth ini).
  */
 
 function base64url(buffer: ArrayBuffer): string {
@@ -35,7 +35,7 @@ export async function generateCodeChallenge(verifier: string): Promise<string> {
 }
 
 const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL ?? 'https://login.bagdja.com';
-const CLIENT_ID = process.env.NEXT_PUBLIC_CLIENT_ID ?? 'novelo';
+const CLIENT_ID = process.env.NEXT_PUBLIC_CLIENT_ID ?? 'bookpedia';
 const REDIRECT_URI =
   process.env.NEXT_PUBLIC_REDIRECT_URI ?? 'http://localhost:5022/auth/callback';
 

@@ -6,10 +6,10 @@
  * menyimpan Set-Cookie yang menempel di response redirect — cookie yang
  * di-set di /auth/login sebelum redirect ke IdP kadang tidak kebaca lagi di
  * /auth/callback, menyebabkan state_mismatch di iOS meski Chrome/Android
- * normal. Pola & fix ini di-port persis dari `bagdja-novelo-app/src/lib/
+ * normal. Pola & fix ini di-port persis dari `bagdja-bookpedia-app/src/lib/
  * oauth-state-store.ts` — REUSE Upstash database yang sama (key prefix
  * `oauth_state:` + `stateId` acak per-request sudah cukup terisolasi antar
- * app, tidak butuh Upstash database terpisah untuk novelo-admin).
+ * app, tidak butuh Upstash database terpisah untuk bookpedia-admin).
  *
  * Kenapa bukan `state` terenkripsi — blob terenkripsi high-entropy di query
  * string lintas domain beberapa kali ke-flag ekstensi ad-blocker/privacy
