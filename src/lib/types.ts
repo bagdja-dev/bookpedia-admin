@@ -47,6 +47,12 @@ export interface Platform {
   enableRating: boolean;
   /** Fase 7 — grain rating saat ini. */
   ratingMode: RatingMode;
+  /** Fase 8 — nyala/mati tombol Like di ChapterEngagementBar. */
+  enableLike: boolean;
+  /** Fase 8 — nyala/mati tombol Comment (mock) di ChapterEngagementBar. */
+  enableComment: boolean;
+  /** Fase 8 — nyala/mati tombol Share di ChapterEngagementBar. */
+  enableShare: boolean;
 }
 
 export interface PlatformsResponse {
@@ -67,6 +73,9 @@ export interface CreatePlatformPayload {
   maxTagsPerBook?: number;
   enableRating?: boolean;
   ratingMode?: RatingMode;
+  enableLike?: boolean;
+  enableComment?: boolean;
+  enableShare?: boolean;
 }
 
 export interface UpdatePlatformPayload {
@@ -85,6 +94,9 @@ export interface UpdatePlatformPayload {
   searchConsoleVerificationContent?: string | null;
   enableRating?: boolean;
   ratingMode?: RatingMode;
+  enableLike?: boolean;
+  enableComment?: boolean;
+  enableShare?: boolean;
 }
 
 export interface PlatformStaff {

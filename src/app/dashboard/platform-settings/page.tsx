@@ -55,6 +55,9 @@ interface FormState {
   searchConsoleVerificationContent: string;
   enableRating: boolean;
   ratingMode: RatingMode;
+  enableLike: boolean;
+  enableComment: boolean;
+  enableShare: boolean;
 }
 
 const EMPTY_FORM: FormState = {
@@ -72,6 +75,9 @@ const EMPTY_FORM: FormState = {
   searchConsoleVerificationContent: '',
   enableRating: true,
   ratingMode: 'book',
+  enableLike: true,
+  enableComment: true,
+  enableShare: true,
 };
 
 function platformToForm(platform: Platform): FormState {
@@ -90,6 +96,9 @@ function platformToForm(platform: Platform): FormState {
     searchConsoleVerificationContent: platform.searchConsoleVerificationContent ?? '',
     enableRating: platform.enableRating ?? true,
     ratingMode: platform.ratingMode ?? 'book',
+    enableLike: platform.enableLike ?? true,
+    enableComment: platform.enableComment ?? true,
+    enableShare: platform.enableShare ?? true,
   };
 }
 
@@ -276,6 +285,9 @@ export default function PlatformSettingsPage() {
         maxTagsPerBook: Math.max(0, Number(form.maxTagsPerBook) || 0),
         enableRating: form.enableRating,
         ratingMode: form.ratingMode,
+        enableLike: form.enableLike,
+        enableComment: form.enableComment,
+        enableShare: form.enableShare,
         // Cuma relevan saat edit (Platform belum punya id saat create) —
         // dikirim null kalau dikosongkan supaya bisa "dihapus" dari form ini.
         ...(!isCreating
@@ -643,6 +655,67 @@ export default function PlatformSettingsPage() {
                     </p>
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-3 pt-3">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Engagement Bar (Fase 8) — tombol di halaman baca Chapter, gaya TikTok/Shorts.
+                </p>
+
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="enableLike"
+                    checked={form.enableLike}
+                    onChange={(e) => updateField('enableLike', e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <Label htmlFor="enableLike">Aktifkan Like</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Tombol Like (sekali-tap, terpisah dari Rating bintang di atas) di halaman baca
+                      Chapter. Wajib login untuk like.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="enableComment"
+                    checked={form.enableComment}
+                    onChange={(e) => updateField('enableComment', e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <Label htmlFor="enableComment">Aktifkan Comment</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Tombol Comment di halaman baca Chapter. Fase 8 ini masih tampilan mock (belum
+                      terhubung percakapan sungguhan) sambil menunggu Bagdja Chat Service selesai.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="enableShare"
+                    checked={form.enableShare}
+                    onChange={(e) => updateField('enableShare', e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <Label htmlFor="enableShare">Aktifkan Share</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Tombol Share (bagikan link Chapter) di halaman baca Chapter.
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Kalau Like, Comment, dan Share ketiganya dinonaktifkan, seluruh bar disembunyikan
+                  total di halaman baca (tidak ada elemen lain yang dipertahankan sendirian).
+                </p>
               </div>
             </div>
 
