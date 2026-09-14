@@ -33,6 +33,10 @@ export interface Platform {
   updatedAt: string;
   /** Fase 5 (SEO) — jumlah Chapter pertama tiap Book yang bisa dibaca tanpa login. 0 = SEMUA Chapter gratis (bukan "nol Chapter gratis"). */
   maxFreeChapters: number;
+  /** Tampilkan badge status cerita (draft/ongoing/completed) di halaman publik. Tidak mempengaruhi Studio. */
+  showBookStatus: boolean;
+  /** Fase 6 — batas jumlah Tag yang boleh dilekatkan ke satu Book. */
+  maxTagsPerBook: number;
 }
 
 export interface PlatformsResponse {
@@ -49,6 +53,8 @@ export interface CreatePlatformPayload {
   lockStudio?: boolean;
   rendererKey?: string;
   maxFreeChapters?: number;
+  showBookStatus?: boolean;
+  maxTagsPerBook?: number;
 }
 
 export interface UpdatePlatformPayload {
@@ -61,6 +67,8 @@ export interface UpdatePlatformPayload {
   rendererKey?: string;
   isActive?: boolean;
   maxFreeChapters?: number;
+  showBookStatus?: boolean;
+  maxTagsPerBook?: number;
 }
 
 export interface PlatformStaff {

@@ -48,6 +48,8 @@ interface FormState {
   lockStudio: boolean;
   rendererKey: string;
   maxFreeChapters: string;
+  showBookStatus: boolean;
+  maxTagsPerBook: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -59,6 +61,8 @@ const EMPTY_FORM: FormState = {
   lockStudio: false,
   rendererKey: 'reader',
   maxFreeChapters: '0',
+  showBookStatus: true,
+  maxTagsPerBook: '5',
 };
 
 function platformToForm(platform: Platform): FormState {
@@ -71,6 +75,8 @@ function platformToForm(platform: Platform): FormState {
     lockStudio: platform.lockStudio ?? false,
     rendererKey: platform.rendererKey || 'reader',
     maxFreeChapters: String(platform.maxFreeChapters ?? 0),
+    showBookStatus: platform.showBookStatus ?? true,
+    maxTagsPerBook: String(platform.maxTagsPerBook ?? 5),
   };
 }
 
@@ -253,6 +259,8 @@ export default function PlatformSettingsPage() {
         lockStudio: form.lockStudio,
         rendererKey: form.rendererKey.trim() || 'reader',
         maxFreeChapters: Math.max(0, Number(form.maxFreeChapters) || 0),
+        showBookStatus: form.showBookStatus,
+        maxTagsPerBook: Math.max(0, Number(form.maxTagsPerBook) || 0),
       };
 
       if (isCreating) {
@@ -536,6 +544,40 @@ export default function PlatformSettingsPage() {
                 <strong>Isi 0 = SEMUA Chapter gratis</strong> (bukan &ldquo;nol Chapter gratis&rdquo;).
                 Penulis bisa override nilai ini per-Book (harus 0 atau lebih besar dari nilai di sini).
               </p>
+
+              <div className="flex items-start gap-2 pt-3">
+                <input
+                  type="checkbox"
+                  id="showBookStatus"
+                  checked={form.showBookStatus}
+                  onChange={(e) => updateField('showBookStatus', e.target.checked)}
+                  className="mt-1"
+                />
+                <div>
+                  <Label htmlFor="showBookStatus">Tampilkan Status Cerita</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Tampilkan badge status (Draft/Berlanjut/Tamat) di katalog, profil Library, dan detail
+                    Book yang dilihat pembaca. Nonaktifkan kalau tidak ingin status ini terlihat publik —
+                    penulis di Studio tetap bisa melihat & mengubah status seperti biasa.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 pt-3">
+                <Label htmlFor="maxTagsPerBook">Maximum Tag per Book</Label>
+                <Input
+                  id="maxTagsPerBook"
+                  type="number"
+                  min={0}
+                  value={form.maxTagsPerBook}
+                  onChange={(e) => updateField('maxTagsPerBook', e.target.value)}
+                  className="max-w-[160px]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Fase 6 — batas jumlah Tag bebas yang boleh dilekatkan penulis ke satu Book (autocomplete
+                  Tag dari yang sudah pernah dipakai penulis lain di Platform ini).
+                </p>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
