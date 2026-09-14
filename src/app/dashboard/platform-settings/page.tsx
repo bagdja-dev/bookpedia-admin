@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { ImageUpload } from '@/components/image-upload';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
-import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors } from '@/lib/types';
+import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, UpdatePlatformPayload } from '@/lib/types';
 
 const DEFAULT_COLORS: PlatformColors = {
   bg: '#fbf6ee',
@@ -50,6 +51,8 @@ interface FormState {
   maxFreeChapters: string;
   showBookStatus: boolean;
   maxTagsPerBook: string;
+  searchConsoleVerificationFilename: string;
+  searchConsoleVerificationContent: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -63,6 +66,8 @@ const EMPTY_FORM: FormState = {
   maxFreeChapters: '0',
   showBookStatus: true,
   maxTagsPerBook: '5',
+  searchConsoleVerificationFilename: '',
+  searchConsoleVerificationContent: '',
 };
 
 function platformToForm(platform: Platform): FormState {
@@ -77,6 +82,8 @@ function platformToForm(platform: Platform): FormState {
     maxFreeChapters: String(platform.maxFreeChapters ?? 0),
     showBookStatus: platform.showBookStatus ?? true,
     maxTagsPerBook: String(platform.maxTagsPerBook ?? 5),
+    searchConsoleVerificationFilename: platform.searchConsoleVerificationFilename ?? '',
+    searchConsoleVerificationContent: platform.searchConsoleVerificationContent ?? '',
   };
 }
 
@@ -250,7 +257,7 @@ export default function PlatformSettingsPage() {
 
     setSubmitting(true);
     try {
-      const payload: CreatePlatformPayload = {
+      const payload: CreatePlatformPayload & Partial<UpdatePlatformPayload> = {
         nama: form.nama.trim(),
         slug: form.slug.trim(),
         logoUrl: form.logoUrl.trim() || undefined,
@@ -261,6 +268,14 @@ export default function PlatformSettingsPage() {
         maxFreeChapters: Math.max(0, Number(form.maxFreeChapters) || 0),
         showBookStatus: form.showBookStatus,
         maxTagsPerBook: Math.max(0, Number(form.maxTagsPerBook) || 0),
+        // Cuma relevan saat edit (Platform belum punya id saat create) —
+        // dikirim null kalau dikosongkan supaya bisa "dihapus" dari form ini.
+        ...(!isCreating
+          ? {
+              searchConsoleVerificationFilename: form.searchConsoleVerificationFilename.trim() || null,
+              searchConsoleVerificationContent: form.searchConsoleVerificationContent.trim() || null,
+            }
+          : {}),
       };
 
       if (isCreating) {
@@ -579,6 +594,40 @@ export default function PlatformSettingsPage() {
                 </p>
               </div>
             </div>
+
+            {!isCreating && (
+              <div className="space-y-3 border-t pt-4">
+                <div>
+                  <Label>Verifikasi Google Search Console</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Metode &ldquo;HTML file&rdquo; dari Search Console — paste nama file & isinya persis dari
+                    Google. Dibalas otomatis oleh app di domain manapun (subdomain atau custom domain) yang
+                    resolve ke Platform ini, tidak perlu ubah kode/deploy ulang.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="searchConsoleVerificationFilename">Nama File</Label>
+                  <Input
+                    id="searchConsoleVerificationFilename"
+                    value={form.searchConsoleVerificationFilename}
+                    onChange={(e) => updateField('searchConsoleVerificationFilename', e.target.value)}
+                    placeholder="google9bbe81680154a078.html"
+                    className="font-mono text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="searchConsoleVerificationContent">Isi File</Label>
+                  <Textarea
+                    id="searchConsoleVerificationContent"
+                    value={form.searchConsoleVerificationContent}
+                    onChange={(e) => updateField('searchConsoleVerificationContent', e.target.value)}
+                    placeholder="google-site-verification: google9bbe81680154a078.html"
+                    className="font-mono text-xs"
+                    rows={2}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="submit" disabled={submitting || logoUploading || faviconUploading}>

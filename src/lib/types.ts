@@ -37,6 +37,9 @@ export interface Platform {
   showBookStatus: boolean;
   /** Fase 6 — batas jumlah Tag yang boleh dilekatkan ke satu Book. */
   maxTagsPerBook: number;
+  /** Verifikasi Google Search Console ("HTML file" method) — nama file persis dari Google. */
+  searchConsoleVerificationFilename: string | null;
+  searchConsoleVerificationContent: string | null;
 }
 
 export interface PlatformsResponse {
@@ -69,6 +72,8 @@ export interface UpdatePlatformPayload {
   maxFreeChapters?: number;
   showBookStatus?: boolean;
   maxTagsPerBook?: number;
+  searchConsoleVerificationFilename?: string | null;
+  searchConsoleVerificationContent?: string | null;
 }
 
 export interface PlatformStaff {
