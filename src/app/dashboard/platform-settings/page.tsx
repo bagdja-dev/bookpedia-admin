@@ -574,7 +574,7 @@ export default function PlatformSettingsPage() {
                   className="max-w-[160px]"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Fase 6 — batas jumlah Tag bebas yang boleh dilekatkan penulis ke satu Book (autocomplete
+                  batas jumlah Tag bebas yang boleh dilekatkan penulis ke satu Book (autocomplete
                   Tag dari yang sudah pernah dipakai penulis lain di Platform ini).
                 </p>
               </div>
