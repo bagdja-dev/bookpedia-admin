@@ -602,7 +602,7 @@ export default function PlatformSettingsPage() {
                   <p className="text-xs text-muted-foreground">
                     Metode &ldquo;HTML file&rdquo; dari Search Console — paste nama file & isinya persis dari
                     Google. Dibalas otomatis oleh app di domain manapun (subdomain atau custom domain) yang
-                    resolve ke Platform ini, tidak perlu ubah kode/deploy ulang.
+                    resolve ke Platform ini.
                   </p>
                 </div>
                 <div className="space-y-1.5">
