@@ -47,6 +47,7 @@ interface FormState {
   colors: PlatformColors;
   lockStudio: boolean;
   rendererKey: string;
+  maxFreeChapters: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -57,6 +58,7 @@ const EMPTY_FORM: FormState = {
   colors: DEFAULT_COLORS,
   lockStudio: false,
   rendererKey: 'reader',
+  maxFreeChapters: '0',
 };
 
 function platformToForm(platform: Platform): FormState {
@@ -68,6 +70,7 @@ function platformToForm(platform: Platform): FormState {
     colors: { ...DEFAULT_COLORS, ...platform.colors },
     lockStudio: platform.lockStudio ?? false,
     rendererKey: platform.rendererKey || 'reader',
+    maxFreeChapters: String(platform.maxFreeChapters ?? 0),
   };
 }
 
@@ -249,6 +252,7 @@ export default function PlatformSettingsPage() {
         colors: form.colors,
         lockStudio: form.lockStudio,
         rendererKey: form.rendererKey.trim() || 'reader',
+        maxFreeChapters: Math.max(0, Number(form.maxFreeChapters) || 0),
       };
 
       if (isCreating) {
@@ -514,6 +518,24 @@ export default function PlatformSettingsPage() {
                   Satu-satunya jalur saat terkunci adalah insert manual ke DB oleh tim Bagdja.
                 </p>
               </div>
+            </div>
+
+            <div className="space-y-1.5 border-t pt-4">
+              <Label htmlFor="maxFreeChapters">Maximum Free Chapter</Label>
+              <Input
+                id="maxFreeChapters"
+                type="number"
+                min={0}
+                value={form.maxFreeChapters}
+                onChange={(e) => updateField('maxFreeChapters', e.target.value)}
+                className="max-w-[160px]"
+              />
+              <p className="text-xs text-muted-foreground">
+                Jumlah Chapter pertama tiap Book (di Platform ini) yang bisa dibaca TANPA login — untuk
+                SEO & memberi calon pembaca &ldquo;coba baca&rdquo; sebelum daftar.{' '}
+                <strong>Isi 0 = SEMUA Chapter gratis</strong> (bukan &ldquo;nol Chapter gratis&rdquo;).
+                Penulis bisa override nilai ini per-Book (harus 0 atau lebih besar dari nilai di sini).
+              </p>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

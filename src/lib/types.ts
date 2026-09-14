@@ -31,6 +31,8 @@ export interface Platform {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Fase 5 (SEO) — jumlah Chapter pertama tiap Book yang bisa dibaca tanpa login. 0 = SEMUA Chapter gratis (bukan "nol Chapter gratis"). */
+  maxFreeChapters: number;
 }
 
 export interface PlatformsResponse {
@@ -46,6 +48,7 @@ export interface CreatePlatformPayload {
   colors: PlatformColors;
   lockStudio?: boolean;
   rendererKey?: string;
+  maxFreeChapters?: number;
 }
 
 export interface UpdatePlatformPayload {
@@ -57,6 +60,7 @@ export interface UpdatePlatformPayload {
   lockStudio?: boolean;
   rendererKey?: string;
   isActive?: boolean;
+  maxFreeChapters?: number;
 }
 
 export interface PlatformStaff {
