@@ -13,7 +13,7 @@ import { ImageUpload } from '@/components/image-upload';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
-import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, UpdatePlatformPayload } from '@/lib/types';
+import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, RatingMode, UpdatePlatformPayload } from '@/lib/types';
 
 const DEFAULT_COLORS: PlatformColors = {
   bg: '#fbf6ee',
@@ -53,6 +53,8 @@ interface FormState {
   maxTagsPerBook: string;
   searchConsoleVerificationFilename: string;
   searchConsoleVerificationContent: string;
+  enableRating: boolean;
+  ratingMode: RatingMode;
 }
 
 const EMPTY_FORM: FormState = {
@@ -68,6 +70,8 @@ const EMPTY_FORM: FormState = {
   maxTagsPerBook: '5',
   searchConsoleVerificationFilename: '',
   searchConsoleVerificationContent: '',
+  enableRating: true,
+  ratingMode: 'book',
 };
 
 function platformToForm(platform: Platform): FormState {
@@ -84,6 +88,8 @@ function platformToForm(platform: Platform): FormState {
     maxTagsPerBook: String(platform.maxTagsPerBook ?? 5),
     searchConsoleVerificationFilename: platform.searchConsoleVerificationFilename ?? '',
     searchConsoleVerificationContent: platform.searchConsoleVerificationContent ?? '',
+    enableRating: platform.enableRating ?? true,
+    ratingMode: platform.ratingMode ?? 'book',
   };
 }
 
@@ -268,6 +274,8 @@ export default function PlatformSettingsPage() {
         maxFreeChapters: Math.max(0, Number(form.maxFreeChapters) || 0),
         showBookStatus: form.showBookStatus,
         maxTagsPerBook: Math.max(0, Number(form.maxTagsPerBook) || 0),
+        enableRating: form.enableRating,
+        ratingMode: form.ratingMode,
         // Cuma relevan saat edit (Platform belum punya id saat create) —
         // dikirim null kalau dikosongkan supaya bisa "dihapus" dari form ini.
         ...(!isCreating
@@ -592,6 +600,49 @@ export default function PlatformSettingsPage() {
                   batas jumlah Tag bebas yang boleh dilekatkan penulis ke satu Book (autocomplete
                   Tag dari yang sudah pernah dipakai penulis lain di Platform ini).
                 </p>
+              </div>
+
+              <div className="space-y-3 pt-3">
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="enableRating"
+                    checked={form.enableRating}
+                    onChange={(e) => updateField('enableRating', e.target.checked)}
+                    className="mt-1"
+                  />
+                  <div>
+                    <Label htmlFor="enableRating">Aktifkan Rating</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Izinkan pembaca yang login memberi rating 1-5 bintang. Nonaktifkan untuk
+                      sembunyikan seluruh tampilan rating dari halaman publik — data lama tetap
+                      tersimpan, muncul lagi begitu dinyalakan ulang.
+                    </p>
+                  </div>
+                </div>
+
+                {form.enableRating && (
+                  <div className="space-y-1.5 pl-6">
+                    <Label htmlFor="ratingMode">Mode Rating</Label>
+                    <select
+                      id="ratingMode"
+                      value={form.ratingMode}
+                      onChange={(e) => updateField('ratingMode', e.target.value as RatingMode)}
+                      className="flex h-9 w-full max-w-[240px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                    >
+                      <option value="book">Per Book (satu rating untuk keseluruhan cerita)</option>
+                      <option value="chapter">Per Chapter (tiap Chapter dirating terpisah)</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Per Book</strong>: pembaca kasih satu rating untuk keseluruhan Book.{' '}
+                      <strong>Per Chapter</strong>: pembaca kasih rating tiap Chapter yang dibaca —
+                      lebih akuntabel karena kualitas naskah bisa berubah di chapter-chapter
+                      berikutnya. Di kedua mode, halaman detail Book tetap menampilkan satu angka
+                      rating gabungan. Mengganti mode TIDAK menghapus data rating mode sebelumnya
+                      (tetap tersimpan, berhenti menerima rating baru sampai mode diganti balik).
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

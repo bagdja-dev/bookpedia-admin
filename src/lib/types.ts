@@ -5,6 +5,9 @@
  * ditentukan backend.
  */
 
+/** Fase 7 — grain rating: "book" = satu rating per Book, "chapter" = rating terpisah tiap Chapter (diagregasi ke Book saat ditampilkan). */
+export type RatingMode = 'book' | 'chapter';
+
 export interface PlatformColors {
   bg: string;
   surface: string;
@@ -40,6 +43,10 @@ export interface Platform {
   /** Verifikasi Google Search Console ("HTML file" method) — nama file persis dari Google. */
   searchConsoleVerificationFilename: string | null;
   searchConsoleVerificationContent: string | null;
+  /** Fase 7 — nyala/mati fitur rating Book/Chapter. */
+  enableRating: boolean;
+  /** Fase 7 — grain rating saat ini. */
+  ratingMode: RatingMode;
 }
 
 export interface PlatformsResponse {
@@ -58,6 +65,8 @@ export interface CreatePlatformPayload {
   maxFreeChapters?: number;
   showBookStatus?: boolean;
   maxTagsPerBook?: number;
+  enableRating?: boolean;
+  ratingMode?: RatingMode;
 }
 
 export interface UpdatePlatformPayload {
@@ -74,6 +83,8 @@ export interface UpdatePlatformPayload {
   maxTagsPerBook?: number;
   searchConsoleVerificationFilename?: string | null;
   searchConsoleVerificationContent?: string | null;
+  enableRating?: boolean;
+  ratingMode?: RatingMode;
 }
 
 export interface PlatformStaff {
