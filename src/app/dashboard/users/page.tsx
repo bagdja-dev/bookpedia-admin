@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Check, Copy, Search, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -127,7 +128,11 @@ export default function UsersPage() {
                     <tr key={item.userId} className="border-b last:border-0">
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                          <Link
+                            href={`/dashboard/users/${encodeURIComponent(item.userId)}`}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold text-muted-foreground hover:ring-2 hover:ring-primary/40"
+                            aria-label={`Lihat statistik ${item.displayName || item.username || 'user'}`}
+                          >
                             {item.avatarUrl ? (
                               <img
                                 src={item.avatarUrl}
@@ -137,9 +142,14 @@ export default function UsersPage() {
                             ) : (
                               getInitials(item)
                             )}
-                          </div>
+                          </Link>
                           <div>
-                            <div className="font-medium">{item.displayName || item.username || 'User'}</div>
+                            <Link
+                              href={`/dashboard/users/${encodeURIComponent(item.userId)}`}
+                              className="font-medium hover:underline"
+                            >
+                              {item.displayName || item.username || 'User'}
+                            </Link>
                           <div className="flex max-w-[240px] items-center gap-1 text-xs text-muted-foreground">
                             <span className="truncate">{item.userId}</span>
                             <button

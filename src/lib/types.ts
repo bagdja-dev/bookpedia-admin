@@ -89,6 +89,26 @@ export interface PlatformUserActivityResponse {
   limit: number;
 }
 
+export interface PlatformUserReadingItem {
+  bookId: string;
+  bookSlug: string;
+  bookTitle: string;
+  bookCoverUrl: string | null;
+  lastChapterId: string;
+  lastChapterOrderIndex: number;
+  lastChapterTitle: string;
+  lastReadAt: string;
+}
+
+export interface PlatformUserReadingResponse {
+  userId: string;
+  email: string | null;
+  username: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  readingList: PlatformUserReadingItem[];
+}
+
 export interface CreatePlatformPayload {
   nama: string;
   slug: string;
