@@ -16,6 +16,16 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+function getInitials(item: PlatformUserActivity): string {
+  const label = item.displayName || item.username || item.email || 'U';
+  return label
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
 export default function UsersPage() {
   const { activePlatform, loading: platformLoading } = usePlatformContext();
   const [items, setItems] = useState<PlatformUserActivity[]>([]);
@@ -116,7 +126,20 @@ export default function UsersPage() {
                   {items.map((item) => (
                     <tr key={item.userId} className="border-b last:border-0">
                       <td className="px-3 py-3">
-                        <div className="font-medium">{item.displayName || item.username || 'User'}</div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                            {item.avatarUrl ? (
+                              <img
+                                src={item.avatarUrl}
+                                alt={item.displayName || item.username || 'Avatar user'}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              getInitials(item)
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium">{item.displayName || item.username || 'User'}</div>
                           <div className="flex max-w-[240px] items-center gap-1 text-xs text-muted-foreground">
                             <span className="truncate">{item.userId}</span>
                             <button
@@ -133,6 +156,8 @@ export default function UsersPage() {
                               )}
                             </button>
                           </div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-3 py-3 text-muted-foreground">{item.email || '—'}</td>
                       <td className="px-3 py-3">
