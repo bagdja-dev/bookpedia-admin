@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Check, Copy, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -58,6 +58,14 @@ interface FormState {
   enableLike: boolean;
   enableComment: boolean;
   enableShare: boolean;
+  seoDefaultH1: string;
+  seoDefaultTitle: string;
+  seoDefaultDescription: string;
+  seoDefaultOgTitle: string;
+  seoDefaultOgDescription: string;
+  seoDefaultOgType: 'website' | 'book' | 'profile';
+  seoPrefix: string;
+  seoSuffix: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -78,6 +86,14 @@ const EMPTY_FORM: FormState = {
   enableLike: true,
   enableComment: true,
   enableShare: true,
+  seoDefaultH1: '{{title}}',
+  seoDefaultTitle: '{{title}} — {{platform}}',
+  seoDefaultDescription: 'Baca {{title}} di {{platform}}.',
+  seoDefaultOgTitle: '',
+  seoDefaultOgDescription: '',
+  seoDefaultOgType: 'website',
+  seoPrefix: '',
+  seoSuffix: '',
 };
 
 function platformToForm(platform: Platform): FormState {
@@ -99,6 +115,14 @@ function platformToForm(platform: Platform): FormState {
     enableLike: platform.enableLike ?? true,
     enableComment: platform.enableComment ?? true,
     enableShare: platform.enableShare ?? true,
+    seoDefaultH1: platform.seoDefaultH1 ?? '',
+    seoDefaultTitle: platform.seoDefaultTitle ?? '',
+    seoDefaultDescription: platform.seoDefaultDescription ?? '',
+    seoDefaultOgTitle: platform.seoDefaultOgTitle ?? '',
+    seoDefaultOgDescription: platform.seoDefaultOgDescription ?? '',
+    seoDefaultOgType: platform.seoDefaultOgType ?? 'website',
+    seoPrefix: platform.seoPrefix ?? '',
+    seoSuffix: platform.seoSuffix ?? '',
   };
 }
 
@@ -131,6 +155,82 @@ function ColorField({
           className="font-mono text-xs"
           placeholder="#000000"
         />
+      </div>
+    </div>
+  );
+}
+
+const SEO_TOKENS = ['{{title}}', '{{platform}}', '{{library}}', '{{author}}', '{{bookType}}', '{{prefix}}', '{{suffix}}'];
+
+function SeoTemplateField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  multiline = false,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+}) {
+  const fieldRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+
+  function appendToken(token: string) {
+    const field = fieldRef.current;
+    const start = field?.selectionStart ?? value.length;
+    const end = field?.selectionEnd ?? value.length;
+    const nextValue = `${value.slice(0, start)}${token}${value.slice(end)}`;
+    onChange(nextValue);
+
+    requestAnimationFrame(() => {
+      fieldRef.current?.focus();
+      const cursor = start + token.length;
+      fieldRef.current?.setSelectionRange(cursor, cursor);
+    });
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      {multiline ? (
+        <Textarea
+          ref={(node) => {
+            fieldRef.current = node;
+          }}
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={2}
+        />
+      ) : (
+        <Input
+          ref={(node) => {
+            fieldRef.current = node;
+          }}
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+        />
+      )}
+      <div className="flex flex-wrap gap-1">
+        {SEO_TOKENS.map((token) => (
+          <Button
+            key={token}
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-3.5 px-0.5 font-mono text-[8px] leading-none"
+            onClick={() => appendToken(token)}
+          >
+            {token}
+          </Button>
+        ))}
       </div>
     </div>
   );
@@ -288,6 +388,14 @@ export default function PlatformSettingsPage() {
         enableLike: form.enableLike,
         enableComment: form.enableComment,
         enableShare: form.enableShare,
+        seoDefaultH1: form.seoDefaultH1.trim() || undefined,
+        seoDefaultTitle: form.seoDefaultTitle.trim() || undefined,
+        seoDefaultDescription: form.seoDefaultDescription.trim() || undefined,
+        seoDefaultOgTitle: form.seoDefaultOgTitle.trim() || undefined,
+        seoDefaultOgDescription: form.seoDefaultOgDescription.trim() || undefined,
+        seoDefaultOgType: form.seoDefaultOgType,
+        seoPrefix: form.seoPrefix.trim() || undefined,
+        seoSuffix: form.seoSuffix.trim() || undefined,
         // Cuma relevan saat edit (Platform belum punya id saat create) —
         // dikirim null kalau dikosongkan supaya bisa "dihapus" dari form ini.
         ...(!isCreating
@@ -716,6 +824,36 @@ export default function PlatformSettingsPage() {
                   Kalau Like, Comment, dan Share ketiganya dinonaktifkan, seluruh bar disembunyikan
                   total di halaman baca (tidak ada elemen lain yang dipertahankan sendirian).
                 </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <Label>Default SEO</Label>
+                <p className="text-xs text-muted-foreground">
+                  Template default untuk halaman publik. Token: {'{{title}}'}, {'{{platform}}'}, {'{{library}}'}, {'{{author}}'}, {'{{bookType}}'}, {'{{prefix}}'}, {'{{suffix}}'}.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <SeoTemplateField id="seoDefaultH1" label="Default H1" value={form.seoDefaultH1} onChange={(value) => updateField('seoDefaultH1', value)} placeholder="{{title}}" />
+                <SeoTemplateField id="seoDefaultTitle" label="Default Title" value={form.seoDefaultTitle} onChange={(value) => updateField('seoDefaultTitle', value)} placeholder="{{title}} — {{platform}}" />
+                <div className="sm:col-span-2">
+                  <SeoTemplateField id="seoDefaultDescription" label="Default Description" value={form.seoDefaultDescription} onChange={(value) => updateField('seoDefaultDescription', value)} placeholder="Baca {{title}} di {{platform}}." multiline />
+                </div>
+                <SeoTemplateField id="seoDefaultOgTitle" label="Default OG Title" value={form.seoDefaultOgTitle} onChange={(value) => updateField('seoDefaultOgTitle', value)} placeholder="Kosongkan untuk memakai title" />
+                <div className="space-y-1.5">
+                  <Label htmlFor="seoDefaultOgType">Default OG Type</Label>
+                  <select id="seoDefaultOgType" value={form.seoDefaultOgType} onChange={(e) => updateField('seoDefaultOgType', e.target.value as FormState['seoDefaultOgType'])} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm">
+                    <option value="website">website</option>
+                    <option value="book">book</option>
+                    <option value="profile">profile</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <SeoTemplateField id="seoDefaultOgDescription" label="Default OG Description" value={form.seoDefaultOgDescription} onChange={(value) => updateField('seoDefaultOgDescription', value)} placeholder="Kosongkan untuk memakai description" multiline />
+                </div>
+                <SeoTemplateField id="seoPrefix" label="Prefix" value={form.seoPrefix} onChange={(value) => updateField('seoPrefix', value)} placeholder="Bagdja" />
+                <SeoTemplateField id="seoSuffix" label="Suffix" value={form.seoSuffix} onChange={(value) => updateField('seoSuffix', value)} placeholder="Bookpedia" />
               </div>
             </div>
 

@@ -53,6 +53,14 @@ export interface Platform {
   enableComment: boolean;
   /** Fase 8 — nyala/mati tombol Share di ChapterEngagementBar. */
   enableShare: boolean;
+  seoDefaultH1: string | null;
+  seoDefaultTitle: string | null;
+  seoDefaultDescription: string | null;
+  seoDefaultOgTitle: string | null;
+  seoDefaultOgDescription: string | null;
+  seoDefaultOgType: 'website' | 'book' | 'profile' | null;
+  seoPrefix: string | null;
+  seoSuffix: string | null;
 }
 
 export interface PlatformsResponse {
@@ -97,6 +105,14 @@ export interface CreatePlatformPayload {
   enableLike?: boolean;
   enableComment?: boolean;
   enableShare?: boolean;
+  seoDefaultH1?: string;
+  seoDefaultTitle?: string;
+  seoDefaultDescription?: string;
+  seoDefaultOgTitle?: string;
+  seoDefaultOgDescription?: string;
+  seoDefaultOgType?: 'website' | 'book' | 'profile';
+  seoPrefix?: string;
+  seoSuffix?: string;
 }
 
 export interface UpdatePlatformPayload {
@@ -118,6 +134,14 @@ export interface UpdatePlatformPayload {
   enableLike?: boolean;
   enableComment?: boolean;
   enableShare?: boolean;
+  seoDefaultH1?: string | null;
+  seoDefaultTitle?: string | null;
+  seoDefaultDescription?: string | null;
+  seoDefaultOgTitle?: string | null;
+  seoDefaultOgDescription?: string | null;
+  seoDefaultOgType?: 'website' | 'book' | 'profile' | null;
+  seoPrefix?: string | null;
+  seoSuffix?: string | null;
 }
 
 export interface PlatformStaff {
