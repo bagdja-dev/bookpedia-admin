@@ -60,6 +60,27 @@ export interface PlatformsResponse {
   platforms: Platform[];
 }
 
+export interface PlatformUserActivity {
+  userId: string;
+  email: string | null;
+  username: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  readingCount: number;
+  ratingCount: number;
+  likeCount: number;
+  highlightCount: number;
+  libraryCount: number;
+  lastActivityAt: string;
+}
+
+export interface PlatformUserActivityResponse {
+  items: PlatformUserActivity[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface CreatePlatformPayload {
   nama: string;
   slug: string;
