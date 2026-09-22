@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Check, Copy, RefreshCw } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Copy, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { ImageUpload } from '@/components/image-upload';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
-import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, RatingMode, UpdatePlatformPayload } from '@/lib/types';
+import type { CatalogSectionConfig, CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, RatingMode, UpdatePlatformPayload } from '@/lib/types';
 
 const DEFAULT_COLORS: PlatformColors = {
   bg: '#fbf6ee',
@@ -48,6 +48,7 @@ interface FormState {
   colors: PlatformColors;
   lockStudio: boolean;
   rendererKey: string;
+  homepageSections: CatalogSectionConfig[];
   maxFreeChapters: string;
   showBookStatus: boolean;
   maxTagsPerBook: string;
@@ -76,6 +77,10 @@ const EMPTY_FORM: FormState = {
   colors: DEFAULT_COLORS,
   lockStudio: false,
   rendererKey: 'reader',
+  homepageSections: [
+    { key: 'top', type: 'top', title: 'Top / Hot', enabled: true, layout: 'slider', limit: 10 },
+    { key: 'new-updated', type: 'new_updated', title: 'New Updated', enabled: true, layout: 'slider', limit: 10 },
+  ],
   maxFreeChapters: '0',
   showBookStatus: true,
   maxTagsPerBook: '5',
@@ -105,6 +110,7 @@ function platformToForm(platform: Platform): FormState {
     colors: { ...DEFAULT_COLORS, ...platform.colors },
     lockStudio: platform.lockStudio ?? false,
     rendererKey: platform.rendererKey || 'reader',
+    homepageSections: platform.homepageSections?.length ? platform.homepageSections : EMPTY_FORM.homepageSections,
     maxFreeChapters: String(platform.maxFreeChapters ?? 0),
     showBookStatus: platform.showBookStatus ?? true,
     maxTagsPerBook: String(platform.maxTagsPerBook ?? 5),
@@ -367,6 +373,25 @@ export default function PlatformSettingsPage() {
     setForm((prev) => ({ ...prev, colors: { ...prev.colors, [key]: value } }));
   }
 
+  function updateHomepageSection(index: number, patch: Partial<CatalogSectionConfig>) {
+    setForm((prev) => ({
+      ...prev,
+      homepageSections: prev.homepageSections.map((section, sectionIndex) =>
+        sectionIndex === index ? { ...section, ...patch } : section,
+      ),
+    }));
+  }
+
+  function moveHomepageSection(index: number, direction: -1 | 1) {
+    setForm((prev) => {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= prev.homepageSections.length) return prev;
+      const homepageSections = [...prev.homepageSections];
+      [homepageSections[index], homepageSections[targetIndex]] = [homepageSections[targetIndex], homepageSections[index]];
+      return { ...prev, homepageSections };
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -380,6 +405,11 @@ export default function PlatformSettingsPage() {
         colors: form.colors,
         lockStudio: form.lockStudio,
         rendererKey: form.rendererKey.trim() || 'reader',
+        homepageSections: form.homepageSections.map((section) => ({
+          ...section,
+          title: section.title.trim(),
+          limit: Math.min(24, Math.max(4, Number(section.limit) || 10)),
+        })),
         maxFreeChapters: Math.max(0, Number(form.maxFreeChapters) || 0),
         showBookStatus: form.showBookStatus,
         maxTagsPerBook: Math.max(0, Number(form.maxTagsPerBook) || 0),
@@ -634,6 +664,83 @@ export default function PlatformSettingsPage() {
                   Satu-satunya template yang ada saat ini adalah &ldquo;reader&rdquo;. Renderer baru
                   (mis. musik) ditambahkan nanti begitu benar-benar dibutuhkan.
                 </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <Label>Homepage Sections</Label>
+                <p className="text-xs text-muted-foreground">
+                  Atur section slider yang tampil di halaman katalog publik. Urutan dari atas menjadi urutan tampil.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {form.homepageSections.map((section, index) => (
+                  <div key={section.key} className="rounded-lg border p-3">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={section.enabled}
+                        onChange={(e) => updateHomepageSection(index, { enabled: e.target.checked })}
+                        className="mt-1"
+                        aria-label={`Tampilkan ${section.title}`}
+                      />
+                      <div className="min-w-0 flex-1 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-medium">{section.type === 'top' ? 'Top / Hot' : 'New Updated'}</p>
+                            <p className="text-xs text-muted-foreground">Layout: slider</p>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              title="Naikkan section"
+                              aria-label="Naikkan section"
+                              disabled={index === 0}
+                              onClick={() => moveHomepageSection(index, -1)}
+                            >
+                              <ArrowUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              title="Turunkan section"
+                              aria-label="Turunkan section"
+                              disabled={index === form.homepageSections.length - 1}
+                              onClick={() => moveHomepageSection(index, 1)}
+                            >
+                              <ArrowDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`section-title-${section.key}`}>Judul section</Label>
+                            <Input
+                              id={`section-title-${section.key}`}
+                              value={section.title}
+                              onChange={(e) => updateHomepageSection(index, { title: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`section-limit-${section.key}`}>Jumlah Book</Label>
+                            <Input
+                              id={`section-limit-${section.key}`}
+                              type="number"
+                              min={4}
+                              max={24}
+                              value={section.limit}
+                              onChange={(e) => updateHomepageSection(index, { limit: Number(e.target.value) || 10 })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 

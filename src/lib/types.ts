@@ -20,6 +20,31 @@ export interface PlatformColors {
   olive: string;
 }
 
+export interface CatalogSectionConfig {
+  key: string;
+  title: string;
+  enabled: boolean;
+  type?: 'top' | 'new_updated';
+  queryType?: 'predefined' | 'custom';
+  predefinedQuery?: 'top' | 'new_updated';
+  customQuery?: {
+    genre?: string | string[];
+    category?: string | string[];
+    tag?: string;
+    library?: string;
+    search?: string;
+    sort?: 'updated' | 'views' | 'title';
+    sortRules?: Array<{
+      field: 'updated' | 'views' | 'title';
+      direction: 'asc' | 'desc';
+    }>;
+  };
+  layout: 'grid' | 'slider';
+  limit: number;
+  lazyLoad?: boolean;
+  pageSize?: number;
+}
+
 export interface Platform {
   id: string;
   nama: string;
@@ -29,6 +54,7 @@ export interface Platform {
   colors: PlatformColors;
   lockStudio: boolean;
   rendererKey: string;
+  homepageSections: CatalogSectionConfig[];
   domain: string | null;
   domainVerifiedAt: string | null;
   isActive: boolean;
@@ -154,6 +180,7 @@ export interface CreatePlatformPayload {
   colors: PlatformColors;
   lockStudio?: boolean;
   rendererKey?: string;
+  homepageSections?: CatalogSectionConfig[];
   maxFreeChapters?: number;
   showBookStatus?: boolean;
   maxTagsPerBook?: number;
@@ -180,6 +207,7 @@ export interface UpdatePlatformPayload {
   colors?: PlatformColors;
   lockStudio?: boolean;
   rendererKey?: string;
+  homepageSections?: CatalogSectionConfig[];
   isActive?: boolean;
   maxFreeChapters?: number;
   showBookStatus?: boolean;
