@@ -121,7 +121,10 @@ export default function HomepageSettingsPage() {
         : [{ field: 'updated' as const, direction: 'desc' as const }];
   }
 
-  function updateSortRules(index: number, rules: CatalogSectionConfig['customQuery']['sortRules']) {
+  function updateSortRules(
+    index: number,
+    rules: NonNullable<CatalogSectionConfig['customQuery']>['sortRules'],
+  ) {
     setSections((current) => current.map((section, itemIndex) => itemIndex === index
       ? { ...section, customQuery: { ...section.customQuery, sortRules: rules } }
       : section));
