@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, ChevronLeft, ChevronRight, Library, Settings, Tag, UserRound, Users, X } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, LayoutDashboard, Library, Settings, Tag, UserRound, Users, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { usePlatformContext } from '@/context/platform-context';
@@ -16,12 +16,18 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { href: '/dashboard/platform-settings', label: 'Platform Settings', icon: Settings, ownerOnly: false },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, ownerOnly: false },
   { href: '/dashboard/genres', label: 'Genres', icon: Library, ownerOnly: false },
   { href: '/dashboard/categories', label: 'Categories', icon: Tag, ownerOnly: false },
   { href: '/dashboard/users', label: 'Users', icon: UserRound, ownerOnly: false },
   { href: '/dashboard/staff', label: 'Staff', icon: Users, ownerOnly: true },
 ];
+
+const SETTINGS_ITEM = {
+  href: '/dashboard/platform-settings',
+  label: 'Platform Settings',
+  icon: Settings,
+};
 
 export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
@@ -67,7 +73,7 @@ export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: Sideb
         <nav className="flex-1 space-y-1 px-3 py-4">
           {items.map((item) => {
             const Icon = item.icon;
-            const active = pathname?.startsWith(item.href);
+            const active = item.href === '/dashboard' ? pathname === item.href : pathname?.startsWith(item.href);
             return (
               <Link
                 key={item.href}
@@ -88,6 +94,24 @@ export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: Sideb
             );
           })}
         </nav>
+
+        <div className="border-t border-sidebar-border p-3">
+          <Link
+            href={SETTINGS_ITEM.href}
+            onClick={onClose}
+            title={collapsed ? SETTINGS_ITEM.label : undefined}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              collapsed && 'lg:justify-center lg:px-2',
+              pathname?.startsWith(SETTINGS_ITEM.href)
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+            )}
+          >
+            <SETTINGS_ITEM.icon className="h-4 w-4 shrink-0" />
+            <span className={cn(collapsed && 'lg:hidden')}>{SETTINGS_ITEM.label}</span>
+          </Link>
+        </div>
 
         {/* Toggle collapse — cuma relevan di layar besar, drawer mobile selalu full-width */}
         <div className="hidden border-t border-sidebar-border p-3 lg:block">

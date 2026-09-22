@@ -68,6 +68,43 @@ export interface PlatformsResponse {
   platforms: Platform[];
 }
 
+export interface PlatformAnalyticsItem {
+  date: string;
+  userGrowth: number;
+  readingGrowth: number;
+  totalUsers: number;
+}
+
+export interface PlatformAnalyticsBook {
+  title: string;
+  author: string;
+  views: number;
+  progress: number;
+}
+
+export interface PlatformRecentActivity {
+  title: string;
+  detail: string;
+  activityAt: string;
+  type: string;
+  userName: string;
+  avatarUrl: string | null;
+}
+
+export interface PlatformAnalyticsResponse {
+  items: PlatformAnalyticsItem[];
+  topBooks: PlatformAnalyticsBook[];
+  recentActivities: PlatformRecentActivity[];
+  totalBooks: number;
+  totalLibraries: number;
+  publishedBooks: number;
+  totalReaders: number;
+  totalViews: number;
+  totalComments: number;
+  totalLikes: number;
+  averageRating: number;
+}
+
 export interface PlatformUserActivity {
   userId: string;
   email: string | null;
