@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ImageUpload } from '@/components/image-upload';
+import { AudioUpload } from '@/components/audio-upload';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
@@ -45,6 +46,7 @@ interface FormState {
   slug: string;
   logoUrl: string;
   faviconUrl: string;
+  notificationSoundUrl: string;
   colors: PlatformColors;
   lockStudio: boolean;
   rendererKey: string;
@@ -74,6 +76,7 @@ const EMPTY_FORM: FormState = {
   slug: '',
   logoUrl: '',
   faviconUrl: '',
+  notificationSoundUrl: '',
   colors: DEFAULT_COLORS,
   lockStudio: false,
   rendererKey: 'reader',
@@ -107,6 +110,7 @@ function platformToForm(platform: Platform): FormState {
     slug: platform.slug ?? '',
     logoUrl: platform.logoUrl ?? '',
     faviconUrl: platform.faviconUrl ?? '',
+    notificationSoundUrl: platform.notificationSoundUrl ?? '',
     colors: { ...DEFAULT_COLORS, ...platform.colors },
     lockStudio: platform.lockStudio ?? false,
     rendererKey: platform.rendererKey || 'reader',
@@ -298,6 +302,7 @@ export default function PlatformSettingsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [faviconUploading, setFaviconUploading] = useState(false);
+  const [notificationSoundUploading, setNotificationSoundUploading] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
 
   const [verifyingDomain, setVerifyingDomain] = useState(false);
@@ -402,6 +407,7 @@ export default function PlatformSettingsPage() {
         slug: form.slug.trim(),
         logoUrl: form.logoUrl.trim() || undefined,
         faviconUrl: form.faviconUrl.trim() || undefined,
+        notificationSoundUrl: form.notificationSoundUrl.trim() || undefined,
         colors: form.colors,
         lockStudio: form.lockStudio,
         rendererKey: form.rendererKey.trim() || 'reader',
@@ -651,6 +657,15 @@ export default function PlatformSettingsPage() {
                 onUploadingChange={setFaviconUploading}
                 previewWidth={64}
                 previewHeight={64}
+              />
+              <AudioUpload
+                id="notificationSoundUrl"
+                label="Suara Notifikasi"
+                folder="platforms"
+                value={form.notificationSoundUrl}
+                onChange={(url) => updateField('notificationSoundUrl', url)}
+                disabled={submitting}
+                onUploadingChange={setNotificationSoundUploading}
               />
               <div className="space-y-1.5">
                 <Label htmlFor="rendererKey">Renderer Key</Label>
@@ -999,10 +1014,10 @@ export default function PlatformSettingsPage() {
             )}
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="submit" disabled={submitting || logoUploading || faviconUploading}>
+              <Button type="submit" disabled={submitting || logoUploading || faviconUploading || notificationSoundUploading}>
                 {submitting
                   ? 'Menyimpan…'
-                  : logoUploading || faviconUploading
+                  : logoUploading || faviconUploading || notificationSoundUploading
                     ? 'Menunggu upload…'
                     : isCreating
                       ? 'Buat Platform'

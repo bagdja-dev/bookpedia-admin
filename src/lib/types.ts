@@ -51,6 +51,7 @@ export interface Platform {
   slug: string;
   logoUrl: string | null;
   faviconUrl: string | null;
+  notificationSoundUrl: string | null;
   colors: PlatformColors;
   lockStudio: boolean;
   rendererKey: string;
@@ -177,6 +178,7 @@ export interface CreatePlatformPayload {
   slug: string;
   logoUrl?: string;
   faviconUrl?: string;
+  notificationSoundUrl?: string;
   colors: PlatformColors;
   lockStudio?: boolean;
   rendererKey?: string;
@@ -204,6 +206,7 @@ export interface UpdatePlatformPayload {
   slug?: string;
   logoUrl?: string;
   faviconUrl?: string;
+  notificationSoundUrl?: string;
   colors?: PlatformColors;
   lockStudio?: boolean;
   rendererKey?: string;
