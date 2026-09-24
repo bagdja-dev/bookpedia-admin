@@ -14,7 +14,7 @@ import { AudioUpload } from '@/components/audio-upload';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
-import type { CatalogSectionConfig, CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, RatingMode, UpdatePlatformPayload } from '@/lib/types';
+import type { CatalogSectionConfig, CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, RatingMode, StudioEditMode, UpdatePlatformPayload } from '@/lib/types';
 
 const DEFAULT_COLORS: PlatformColors = {
   bg: '#fbf6ee',
@@ -49,6 +49,7 @@ interface FormState {
   notificationSoundUrl: string;
   colors: PlatformColors;
   lockStudio: boolean;
+  studioEditMode: StudioEditMode;
   rendererKey: string;
   homepageSections: CatalogSectionConfig[];
   maxFreeChapters: string;
@@ -79,6 +80,7 @@ const EMPTY_FORM: FormState = {
   notificationSoundUrl: '',
   colors: DEFAULT_COLORS,
   lockStudio: false,
+  studioEditMode: 'auto',
   rendererKey: 'reader',
   homepageSections: [
     { key: 'top', type: 'top', title: 'Top / Hot', enabled: true, layout: 'slider', limit: 10 },
@@ -113,6 +115,7 @@ function platformToForm(platform: Platform): FormState {
     notificationSoundUrl: platform.notificationSoundUrl ?? '',
     colors: { ...DEFAULT_COLORS, ...platform.colors },
     lockStudio: platform.lockStudio ?? false,
+    studioEditMode: platform.studioEditMode ?? 'auto',
     rendererKey: platform.rendererKey || 'reader',
     homepageSections: platform.homepageSections?.length ? platform.homepageSections : EMPTY_FORM.homepageSections,
     maxFreeChapters: String(platform.maxFreeChapters ?? 0),
@@ -410,6 +413,7 @@ export default function PlatformSettingsPage() {
         notificationSoundUrl: form.notificationSoundUrl.trim() || undefined,
         colors: form.colors,
         lockStudio: form.lockStudio,
+        studioEditMode: form.studioEditMode,
         rendererKey: form.rendererKey.trim() || 'reader',
         homepageSections: form.homepageSections.map((section) => ({
           ...section,
@@ -678,6 +682,31 @@ export default function PlatformSettingsPage() {
                 <p className="text-xs text-muted-foreground">
                   Satu-satunya template yang ada saat ini adalah &ldquo;reader&rdquo;. Renderer baru
                   (mis. musik) ditambahkan nanti begitu benar-benar dibutuhkan.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <Label>Studio Settings</Label>
+                <p className="text-xs text-muted-foreground">
+                  Atur cara editor Chapter menyimpan perubahan untuk semua penulis di Platform ini.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="studioEditMode">Mode Penyimpanan Editor</Label>
+                <select
+                  id="studioEditMode"
+                  value={form.studioEditMode}
+                  onChange={(e) => updateField('studioEditMode', e.target.value as StudioEditMode)}
+                  className="flex h-9 w-full max-w-md rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                >
+                  <option value="auto">Auto save (simpan otomatis setelah berhenti mengetik)</option>
+                  <option value="manual">Manual (klik Edit lalu Simpan)</option>
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Mode Manual membuka Chapter dalam keadaan baca saja. Penulis harus klik Edit dan Simpan
+                  untuk menyimpan perubahan.
                 </p>
               </div>
             </div>

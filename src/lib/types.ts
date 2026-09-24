@@ -7,6 +7,7 @@
 
 /** Fase 7 — grain rating: "book" = satu rating per Book, "chapter" = rating terpisah tiap Chapter (diagregasi ke Book saat ditampilkan). */
 export type RatingMode = 'book' | 'chapter';
+export type StudioEditMode = 'auto' | 'manual';
 
 export interface PlatformColors {
   bg: string;
@@ -54,6 +55,7 @@ export interface Platform {
   notificationSoundUrl: string | null;
   colors: PlatformColors;
   lockStudio: boolean;
+  studioEditMode: StudioEditMode;
   rendererKey: string;
   homepageSections: CatalogSectionConfig[];
   domain: string | null;
@@ -181,6 +183,7 @@ export interface CreatePlatformPayload {
   notificationSoundUrl?: string;
   colors: PlatformColors;
   lockStudio?: boolean;
+  studioEditMode?: StudioEditMode;
   rendererKey?: string;
   homepageSections?: CatalogSectionConfig[];
   maxFreeChapters?: number;
@@ -209,6 +212,7 @@ export interface UpdatePlatformPayload {
   notificationSoundUrl?: string;
   colors?: PlatformColors;
   lockStudio?: boolean;
+  studioEditMode?: StudioEditMode;
   rendererKey?: string;
   homepageSections?: CatalogSectionConfig[];
   isActive?: boolean;
