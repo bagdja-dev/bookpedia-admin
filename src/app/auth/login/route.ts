@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/?error=server_misconfigured', resolveOrigin(request)));
   }
 
-  // TIDAK pakai forceLogin — silent-SSO across produk Bagdja adalah
-  // perilaku yang diharapkan (lihat komentar sama di bookpedia-app).
+  // Bookpedia Admin intentionally keeps silent SSO when an active
+  // Bagdja Login session already exists.
   const authorizeUrl = buildAuthorizeUrl(stateId, codeChallenge);
   return NextResponse.redirect(authorizeUrl);
 }
