@@ -94,6 +94,7 @@ export interface Platform {
   seoDefaultOgType: 'website' | 'book' | 'profile' | null;
   seoPrefix: string | null;
   seoSuffix: string | null;
+  termsAndConditions: string | null;
 }
 
 export interface PlatformsResponse {
@@ -206,6 +207,7 @@ export interface CreatePlatformPayload {
   seoDefaultOgType?: 'website' | 'book' | 'profile';
   seoPrefix?: string;
   seoSuffix?: string;
+  termsAndConditions?: string;
 }
 
 export interface UpdatePlatformPayload {
@@ -240,6 +242,7 @@ export interface UpdatePlatformPayload {
   seoDefaultOgType?: 'website' | 'book' | 'profile' | null;
   seoPrefix?: string | null;
   seoSuffix?: string | null;
+  termsAndConditions?: string | null;
 }
 
 export type PlatformBuildJobStatus =

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowDown, ArrowUp, Check, Copy, RefreshCw } from 'lucide-react';
+import { Check, Copy, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,9 +13,10 @@ import { ImageUpload } from '@/components/image-upload';
 import { AudioUpload } from '@/components/audio-upload';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { PlatformBuildsSection } from '@/components/platform-builds-section';
+import { TermsAndConditionsEditor } from '@/components/terms-and-conditions-editor';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
-import type { CatalogSectionConfig, CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, RatingMode, StudioEditMode, UpdatePlatformPayload } from '@/lib/types';
+import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, RatingMode, StudioEditMode, UpdatePlatformPayload } from '@/lib/types';
 
 const DEFAULT_COLORS: PlatformColors = {
   bg: '#fbf6ee',
@@ -52,7 +53,6 @@ interface FormState {
   lockStudio: boolean;
   studioEditMode: StudioEditMode;
   rendererKey: string;
-  homepageSections: CatalogSectionConfig[];
   maxFreeChapters: string;
   showBookStatus: boolean;
   maxTagsPerBook: string;
@@ -74,6 +74,7 @@ interface FormState {
   seoDefaultOgType: 'website' | 'book' | 'profile';
   seoPrefix: string;
   seoSuffix: string;
+  termsAndConditions: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -86,10 +87,6 @@ const EMPTY_FORM: FormState = {
   lockStudio: false,
   studioEditMode: 'auto',
   rendererKey: 'reader',
-  homepageSections: [
-    { key: 'top', type: 'top', title: 'Top / Hot', enabled: true, layout: 'slider', limit: 10 },
-    { key: 'new-updated', type: 'new_updated', title: 'New Updated', enabled: true, layout: 'slider', limit: 10 },
-  ],
   maxFreeChapters: '0',
   showBookStatus: true,
   maxTagsPerBook: '5',
@@ -110,6 +107,7 @@ const EMPTY_FORM: FormState = {
   seoDefaultOgType: 'website',
   seoPrefix: '',
   seoSuffix: '',
+  termsAndConditions: '',
 };
 
 function platformToForm(platform: Platform): FormState {
@@ -123,7 +121,6 @@ function platformToForm(platform: Platform): FormState {
     lockStudio: platform.lockStudio ?? false,
     studioEditMode: platform.studioEditMode ?? 'auto',
     rendererKey: platform.rendererKey || 'reader',
-    homepageSections: platform.homepageSections?.length ? platform.homepageSections : EMPTY_FORM.homepageSections,
     maxFreeChapters: String(platform.maxFreeChapters ?? 0),
     showBookStatus: platform.showBookStatus ?? true,
     maxTagsPerBook: String(platform.maxTagsPerBook ?? 5),
@@ -144,6 +141,7 @@ function platformToForm(platform: Platform): FormState {
     seoDefaultOgType: platform.seoDefaultOgType ?? 'website',
     seoPrefix: platform.seoPrefix ?? '',
     seoSuffix: platform.seoSuffix ?? '',
+    termsAndConditions: platform.termsAndConditions ?? '',
   };
 }
 
@@ -389,25 +387,6 @@ export default function PlatformSettingsPage() {
     setForm((prev) => ({ ...prev, colors: { ...prev.colors, [key]: value } }));
   }
 
-  function updateHomepageSection(index: number, patch: Partial<CatalogSectionConfig>) {
-    setForm((prev) => ({
-      ...prev,
-      homepageSections: prev.homepageSections.map((section, sectionIndex) =>
-        sectionIndex === index ? { ...section, ...patch } : section,
-      ),
-    }));
-  }
-
-  function moveHomepageSection(index: number, direction: -1 | 1) {
-    setForm((prev) => {
-      const targetIndex = index + direction;
-      if (targetIndex < 0 || targetIndex >= prev.homepageSections.length) return prev;
-      const homepageSections = [...prev.homepageSections];
-      [homepageSections[index], homepageSections[targetIndex]] = [homepageSections[targetIndex], homepageSections[index]];
-      return { ...prev, homepageSections };
-    });
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -423,11 +402,6 @@ export default function PlatformSettingsPage() {
         lockStudio: form.lockStudio,
         studioEditMode: form.studioEditMode,
         rendererKey: form.rendererKey.trim() || 'reader',
-        homepageSections: form.homepageSections.map((section) => ({
-          ...section,
-          title: section.title.trim(),
-          limit: Math.min(24, Math.max(4, Number(section.limit) || 10)),
-        })),
         maxFreeChapters: Math.max(0, Number(form.maxFreeChapters) || 0),
         showBookStatus: form.showBookStatus,
         maxTagsPerBook: Math.max(0, Number(form.maxTagsPerBook) || 0),
@@ -444,6 +418,7 @@ export default function PlatformSettingsPage() {
         seoDefaultOgType: form.seoDefaultOgType,
         seoPrefix: form.seoPrefix.trim() || undefined,
         seoSuffix: form.seoSuffix.trim() || undefined,
+        termsAndConditions: form.termsAndConditions.trim(),
         // Cuma relevan saat edit (Platform belum punya id saat create) —
         // dikirim null kalau dikosongkan supaya bisa "dihapus" dari form ini.
         ...(!isCreating
@@ -726,83 +701,6 @@ export default function PlatformSettingsPage() {
 
             <div className="space-y-3 border-t pt-4">
               <div>
-                <Label>Homepage Sections</Label>
-                <p className="text-xs text-muted-foreground">
-                  Atur section slider yang tampil di halaman katalog publik. Urutan dari atas menjadi urutan tampil.
-                </p>
-              </div>
-              <div className="space-y-3">
-                {form.homepageSections.map((section, index) => (
-                  <div key={section.key} className="rounded-lg border p-3">
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={section.enabled}
-                        onChange={(e) => updateHomepageSection(index, { enabled: e.target.checked })}
-                        className="mt-1"
-                        aria-label={`Tampilkan ${section.title}`}
-                      />
-                      <div className="min-w-0 flex-1 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <p className="text-sm font-medium">{section.type === 'top' ? 'Top / Hot' : 'New Updated'}</p>
-                            <p className="text-xs text-muted-foreground">Layout: slider</p>
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              title="Naikkan section"
-                              aria-label="Naikkan section"
-                              disabled={index === 0}
-                              onClick={() => moveHomepageSection(index, -1)}
-                            >
-                              <ArrowUp className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              title="Turunkan section"
-                              aria-label="Turunkan section"
-                              disabled={index === form.homepageSections.length - 1}
-                              onClick={() => moveHomepageSection(index, 1)}
-                            >
-                              <ArrowDown className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
-                          <div className="space-y-1.5">
-                            <Label htmlFor={`section-title-${section.key}`}>Judul section</Label>
-                            <Input
-                              id={`section-title-${section.key}`}
-                              value={section.title}
-                              onChange={(e) => updateHomepageSection(index, { title: e.target.value })}
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label htmlFor={`section-limit-${section.key}`}>Jumlah Book</Label>
-                            <Input
-                              id={`section-limit-${section.key}`}
-                              type="number"
-                              min={4}
-                              max={24}
-                              value={section.limit}
-                              onChange={(e) => updateHomepageSection(index, { limit: Number(e.target.value) || 10 })}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3 border-t pt-4">
-              <div>
                 <Label>Colors</Label>
                 <p className="text-xs text-muted-foreground">Skema warna reader Platform ini.</p>
               </div>
@@ -1019,6 +917,20 @@ export default function PlatformSettingsPage() {
                 <SeoTemplateField id="seoPrefix" label="Prefix" value={form.seoPrefix} onChange={(value) => updateField('seoPrefix', value)} placeholder="Bagdja" />
                 <SeoTemplateField id="seoSuffix" label="Suffix" value={form.seoSuffix} onChange={(value) => updateField('seoSuffix', value)} placeholder="Bookpedia" />
               </div>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <Label htmlFor="termsAndConditions">Terms &amp; Conditions</Label>
+                <p className="text-xs text-muted-foreground">
+                  Konten ini tampil di halaman publik khusus Platform ini. HTML didukung, misalnya &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;, dan &lt;a&gt;.
+                </p>
+              </div>
+              <TermsAndConditionsEditor
+                value={form.termsAndConditions}
+                onChange={(value) => updateField('termsAndConditions', value)}
+                disabled={submitting}
+              />
             </div>
 
             {!isCreating && (
