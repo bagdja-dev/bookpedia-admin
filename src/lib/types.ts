@@ -72,6 +72,10 @@ export interface Platform {
   /** Verifikasi Google Search Console ("HTML file" method) — nama file persis dari Google. */
   searchConsoleVerificationFilename: string | null;
   searchConsoleVerificationContent: string | null;
+  /** TWA Digital Asset Links — package name app Android (dibalas di /.well-known/assetlinks.json). */
+  androidPackageName: string | null;
+  /** TWA Digital Asset Links — SHA-256 sertifikat penanda tangan, format AA:BB:... */
+  androidSha256CertFingerprints: string[];
   /** Fase 7 — nyala/mati fitur rating Book/Chapter. */
   enableRating: boolean;
   /** Fase 7 — grain rating saat ini. */
@@ -221,6 +225,8 @@ export interface UpdatePlatformPayload {
   maxTagsPerBook?: number;
   searchConsoleVerificationFilename?: string | null;
   searchConsoleVerificationContent?: string | null;
+  androidPackageName?: string | null;
+  androidSha256CertFingerprints?: string[];
   enableRating?: boolean;
   ratingMode?: RatingMode;
   enableLike?: boolean;
@@ -234,6 +240,81 @@ export interface UpdatePlatformPayload {
   seoDefaultOgType?: 'website' | 'book' | 'profile' | null;
   seoPrefix?: string | null;
   seoSuffix?: string | null;
+}
+
+export type PlatformBuildJobStatus =
+  | 'queued'
+  | 'validating'
+  | 'building'
+  | 'signing'
+  | 'uploading'
+  | 'success'
+  | 'failed'
+  | 'cancelled';
+
+export type PlatformBuildType = 'release' | 'debug';
+export type PlatformBuildOutputFormat = 'aab' | 'apk';
+
+export interface PlatformBuildConfig {
+  id: string;
+  platform_id: string;
+  environment: 'dev' | 'staging' | 'prod';
+  version_name: string;
+  version_code: number;
+  keystore_profile_id: string | null;
+  build_flags: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlatformKeystoreProfile {
+  id: string;
+  platform_id: string | null;
+  name: string;
+  alias: string;
+  file_ref: string;
+  password_secret_ref: string;
+  key_password_secret_ref: string | null;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlatformBuildJob {
+  id: string;
+  platform_id: string;
+  config_id: string | null;
+  external_job_id: string | null;
+  status: PlatformBuildJobStatus;
+  progress: number;
+  stage: string | null;
+  build_type?: PlatformBuildType | null;
+  output_format?: PlatformBuildOutputFormat | null;
+  artifact_url: string | null;
+  log_url: string | null;
+  error_message: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+  updated_at: string;
+  config?: PlatformBuildConfig | null;
+}
+
+export interface CreatePlatformBuildJobPayload {
+  platformId: string;
+  configId?: string | null;
+  buildType?: PlatformBuildType;
+  outputFormat?: PlatformBuildOutputFormat;
+  appName?: string;
+  bundleId?: string;
+  targetUrl?: string;
+  iconUrl?: string;
+  splashImageUrl?: string;
+  versionName?: string;
+  versionCode?: number;
+  theme?: Record<string, unknown>;
+  buildConfig?: Record<string, unknown>;
+  signing?: Record<string, unknown>;
 }
 
 export interface PlatformStaff {

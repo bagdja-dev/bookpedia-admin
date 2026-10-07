@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ImageUpload } from '@/components/image-upload';
 import { AudioUpload } from '@/components/audio-upload';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { PlatformBuildsSection } from '@/components/platform-builds-section';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
 import type { CatalogSectionConfig, CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, RatingMode, StudioEditMode, UpdatePlatformPayload } from '@/lib/types';
@@ -57,6 +58,9 @@ interface FormState {
   maxTagsPerBook: string;
   searchConsoleVerificationFilename: string;
   searchConsoleVerificationContent: string;
+  androidPackageName: string;
+  /** Satu fingerprint per baris. */
+  androidSha256CertFingerprints: string;
   enableRating: boolean;
   ratingMode: RatingMode;
   enableLike: boolean;
@@ -91,6 +95,8 @@ const EMPTY_FORM: FormState = {
   maxTagsPerBook: '5',
   searchConsoleVerificationFilename: '',
   searchConsoleVerificationContent: '',
+  androidPackageName: '',
+  androidSha256CertFingerprints: '',
   enableRating: true,
   ratingMode: 'book',
   enableLike: true,
@@ -123,6 +129,8 @@ function platformToForm(platform: Platform): FormState {
     maxTagsPerBook: String(platform.maxTagsPerBook ?? 5),
     searchConsoleVerificationFilename: platform.searchConsoleVerificationFilename ?? '',
     searchConsoleVerificationContent: platform.searchConsoleVerificationContent ?? '',
+    androidPackageName: platform.androidPackageName ?? '',
+    androidSha256CertFingerprints: (platform.androidSha256CertFingerprints ?? []).join('\n'),
     enableRating: platform.enableRating ?? true,
     ratingMode: platform.ratingMode ?? 'book',
     enableLike: platform.enableLike ?? true,
@@ -442,6 +450,11 @@ export default function PlatformSettingsPage() {
           ? {
               searchConsoleVerificationFilename: form.searchConsoleVerificationFilename.trim() || null,
               searchConsoleVerificationContent: form.searchConsoleVerificationContent.trim() || null,
+              androidPackageName: form.androidPackageName.trim() || null,
+              androidSha256CertFingerprints: form.androidSha256CertFingerprints
+                .split(/[\n,]+/)
+                .map((value) => value.trim())
+                .filter(Boolean),
             }
           : {}),
       };
@@ -1042,6 +1055,43 @@ export default function PlatformSettingsPage() {
               </div>
             )}
 
+            {!isCreating && (
+              <div className="space-y-3 border-t pt-4">
+                <div>
+                  <Label>Android App Links (TWA)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Dibalas otomatis di <span className="font-mono">/.well-known/assetlinks.json</span> pada domain
+                    manapun yang resolve ke Platform ini. Wajib supaya app TWA tampil layar penuh tanpa URL bar.
+                    Isi package name app dan SHA-256 sertifikat penanda tangan: release/upload key, &ldquo;App signing
+                    key certificate&rdquo; dari Play Console (Setup &rarr; App signing), dan debug key bila menguji APK Debug.
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="androidPackageName">Package Name</Label>
+                    <Input
+                      id="androidPackageName"
+                      value={form.androidPackageName}
+                      onChange={(e) => updateField('androidPackageName', e.target.value)}
+                      placeholder="com.bagdja.novello"
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="androidSha256CertFingerprints">SHA-256 Certificate Fingerprints</Label>
+                    <Textarea
+                      id="androidSha256CertFingerprints"
+                      value={form.androidSha256CertFingerprints}
+                      onChange={(e) => updateField('androidSha256CertFingerprints', e.target.value)}
+                      placeholder={'AA:BB:CC:...:FF\nsatu fingerprint per baris'}
+                      className="font-mono text-xs"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2 pt-2">
               <Button type="submit" disabled={submitting || logoUploading || faviconUploading || notificationSoundUploading}>
                 {submitting
@@ -1200,6 +1250,12 @@ export default function PlatformSettingsPage() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {!isCreating && selectedPlatform && (
+        <div className="mt-6">
+          <PlatformBuildsSection />
+        </div>
       )}
     </div>
   );
