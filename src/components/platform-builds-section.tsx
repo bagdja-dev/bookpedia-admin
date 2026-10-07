@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, Download, Play, RefreshCw, Rocket, Save } from 'lucide-react';
+import { AlertCircle, Download, Eye, EyeOff, Play, RefreshCw, Rocket, Save } from 'lucide-react';
 
 import { ImageUpload } from '@/components/image-upload';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import type {
   PlatformBuildJobStatus,
   PlatformBuildOutputFormat,
   PlatformBuildType,
+  PlatformKeystorePasswords,
   PlatformKeystoreProfile,
 } from '@/lib/types';
 
@@ -73,6 +74,10 @@ export function PlatformBuildsSection() {
   const [keystoreProfiles, setKeystoreProfiles] = useState<PlatformKeystoreProfile[]>([]);
   const [keystoreFile, setKeystoreFile] = useState<File | null>(null);
   const [buildVariant, setBuildVariant] = useState<BuildVariantOption>('aab-release');
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [revealingPasswords, setRevealingPasswords] = useState(false);
+  /** true saat password profil yang sudah ada diketik ulang → disimpan via PATCH saat Simpan. */
+  const [passwordsDirty, setPasswordsDirty] = useState(false);
   const [iconUploading, setIconUploading] = useState(false);
   const [splashUploading, setSplashUploading] = useState(false);
   const [form, setForm] = useState({
@@ -89,8 +94,8 @@ export function PlatformBuildsSection() {
     keystoreProfileId: '',
     keystoreName: '',
     keystoreAlias: '',
-    passwordSecretRef: '',
-    keyPasswordSecretRef: '',
+    storePassword: '',
+    keyPassword: '',
   });
 
   async function loadJobs() {
@@ -168,9 +173,11 @@ export function PlatformBuildsSection() {
       keystoreProfileId: '',
       keystoreName: '',
       keystoreAlias: '',
-      passwordSecretRef: '',
-      keyPasswordSecretRef: '',
+      storePassword: '',
+      keyPassword: '',
     });
+    setShowPasswords(false);
+    setPasswordsDirty(false);
     setConfigId(null);
     setKeystoreFile(null);
     void Promise.all([
@@ -205,8 +212,6 @@ export function PlatformBuildsSection() {
           ...current,
           keystoreName: selectedProfile.name,
           keystoreAlias: selectedProfile.alias,
-          passwordSecretRef: selectedProfile.password_secret_ref,
-          keyPasswordSecretRef: selectedProfile.key_password_secret_ref ?? '',
         }));
       }
     }).catch((err: unknown) => {
@@ -222,15 +227,46 @@ export function PlatformBuildsSection() {
   function selectKeystoreProfile(profileId: string) {
     setConfigId(null);
     setKeystoreFile(null);
+    setShowPasswords(false);
+    setPasswordsDirty(false);
     const profile = keystoreProfiles.find((item) => item.id === profileId);
     setForm((current) => ({
       ...current,
       keystoreProfileId: profileId,
       keystoreName: profile?.name ?? '',
       keystoreAlias: profile?.alias ?? '',
-      passwordSecretRef: profile?.password_secret_ref ?? '',
-      keyPasswordSecretRef: profile?.key_password_secret_ref ?? '',
+      storePassword: '',
+      keyPassword: '',
     }));
+  }
+
+  function handlePasswordChange(field: 'storePassword' | 'keyPassword', value: string) {
+    if (form.keystoreProfileId) setPasswordsDirty(true);
+    handleChange(field, value);
+  }
+
+  /** Password tersimpan terenkripsi di API; dibuka (didekripsi) hanya saat Owner minta melihat. */
+  async function togglePasswordVisibility() {
+    if (showPasswords) {
+      setShowPasswords(false);
+      return;
+    }
+    if (activePlatform && form.keystoreProfileId && !passwordsDirty && selectedProfile?.has_passwords) {
+      setRevealingPasswords(true);
+      setError(null);
+      try {
+        const passwords = await apiClient<PlatformKeystorePasswords>(
+          `/platform-builds/platforms/${activePlatform.id}/keystore-profiles/${form.keystoreProfileId}/passwords`,
+        );
+        setForm((current) => ({ ...current, storePassword: passwords.storePassword, keyPassword: passwords.keyPassword }));
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Gagal membuka password keystore.');
+        return;
+      } finally {
+        setRevealingPasswords(false);
+      }
+    }
+    setShowPasswords(true);
   }
 
   async function handleSave() {
@@ -245,8 +281,8 @@ export function PlatformBuildsSection() {
         body.append('file', keystoreFile);
         body.append('name', form.keystoreName.trim());
         body.append('alias', form.keystoreAlias.trim());
-        body.append('passwordSecretRef', form.passwordSecretRef.trim());
-        body.append('keyPasswordSecretRef', form.keyPasswordSecretRef.trim());
+        body.append('storePassword', form.storePassword);
+        body.append('keyPassword', form.keyPassword);
         const upload = await fetch('/api/uploads/keystore', { method: 'POST', body });
         const response = await upload.json();
         if (!upload.ok) throw new Error(response.error ?? 'Upload JKS gagal.');
@@ -255,6 +291,14 @@ export function PlatformBuildsSection() {
         setKeystoreProfiles((current) => [profile, ...current.filter((item) => item.id !== profile.id)]);
         setForm((current) => ({ ...current, keystoreProfileId: profile.id }));
         setKeystoreFile(null);
+        setPasswordsDirty(false);
+      } else if (keystoreProfileId && passwordsDirty) {
+        const profile = await apiClient<PlatformKeystoreProfile>(
+          `/platform-builds/platforms/${activePlatform.id}/keystore-profiles/${keystoreProfileId}/passwords`,
+          { method: 'PATCH', body: JSON.stringify({ storePassword: form.storePassword, keyPassword: form.keyPassword }) },
+        );
+        setKeystoreProfiles((current) => current.map((item) => (item.id === profile.id ? profile : item)));
+        setPasswordsDirty(false);
       }
 
       const config = await apiClient<PlatformBuildConfig>('/platform-builds/configs', {
@@ -310,8 +354,10 @@ export function PlatformBuildsSection() {
     }
   }
 
+  const selectedProfile = keystoreProfiles.find((profile) => profile.id === form.keystoreProfileId);
+  const passwordsValid = form.storePassword.length >= 6 && form.keyPassword.length >= 6;
   const isReleaseBuild = buildVariantOptions[buildVariant].buildType === 'release';
-  const needsKeystore = isReleaseBuild && !form.keystoreProfileId;
+  const needsKeystore = isReleaseBuild && (!selectedProfile || !selectedProfile.has_passwords || passwordsDirty);
   const canSubmit = Boolean(
     isOwner && activePlatform && form.appName.trim() && form.bundleId.trim() && form.targetUrl.trim()
     && form.versionName.trim() && Number.isInteger(Number(form.versionCode)) && Number(form.versionCode) > 0
@@ -441,7 +487,7 @@ export function PlatformBuildsSection() {
             <section className="space-y-4 border-t pt-5">
               <div>
                 <h3 className="text-base font-semibold">Android signing</h3>
-                <p className="text-sm text-muted-foreground">Keystore diunggah privat. Password tidak dimasukkan di sini; isi referensi secret yang tersedia untuk builder. Keystore hanya wajib untuk build release; APK Debug memakai debug key builder.</p>
+                <p className="text-sm text-muted-foreground">Keystore diunggah privat dan password disimpan terenkripsi, hanya dibuka saat Anda melihatnya atau saat build dikirim ke builder. Keystore hanya wajib untuk build release; APK Debug memakai debug key builder.</p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
@@ -464,21 +510,34 @@ export function PlatformBuildsSection() {
                     <Label htmlFor="keystore-alias">Key alias</Label>
                     <Input id="keystore-alias" value={form.keystoreAlias} onChange={(e) => handleChange('keystoreAlias', e.target.value)} placeholder="novello-release" />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="keystore-password-ref">Keystore password secret reference</Label>
-                    <Input id="keystore-password-ref" value={form.passwordSecretRef} onChange={(e) => handleChange('passwordSecretRef', e.target.value)} placeholder="secret://bookpedia/novello/store-password" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="key-password-ref">Key password secret reference</Label>
-                    <Input id="key-password-ref" value={form.keyPasswordSecretRef} onChange={(e) => handleChange('keyPasswordSecretRef', e.target.value)} placeholder="secret://bookpedia/novello/key-password" />
-                  </div>
                 </>}
+                {form.keystoreProfileId && selectedProfile && (
+                  <p className="text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">
+                    {selectedProfile.has_passwords
+                      ? 'Password tersimpan terenkripsi. Ketik password baru di bawah lalu Simpan untuk menggantinya.'
+                      : 'Profil ini belum punya password tersimpan — isi password lalu Simpan sebelum build release.'}
+                  </p>
+                )}
+                <div className="space-y-1.5">
+                  <Label htmlFor="keystore-store-password">Keystore password</Label>
+                  <Input id="keystore-store-password" type={showPasswords ? 'text' : 'password'} autoComplete="new-password" value={form.storePassword} onChange={(e) => handlePasswordChange('storePassword', e.target.value)} placeholder={selectedProfile?.has_passwords && !passwordsDirty ? '•••••••• (tersimpan)' : 'Minimal 6 karakter'} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="keystore-key-password">Key password</Label>
+                  <Input id="keystore-key-password" type={showPasswords ? 'text' : 'password'} autoComplete="new-password" value={form.keyPassword} onChange={(e) => handlePasswordChange('keyPassword', e.target.value)} placeholder={selectedProfile?.has_passwords && !passwordsDirty ? '•••••••• (tersimpan)' : 'Biasanya sama dengan keystore password'} />
+                </div>
+                <div className="flex items-end">
+                  <Button type="button" variant="outline" size="sm" onClick={() => void togglePasswordVisibility()} disabled={!isOwner || revealingPasswords || (!form.storePassword && !form.keyPassword && !selectedProfile?.has_passwords)}>
+                    {showPasswords ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+                    {revealingPasswords ? 'Membuka...' : showPasswords ? 'Sembunyikan' : 'Lihat password'}
+                  </Button>
+                </div>
               </div>
             </section>
 
             {!isOwner && <p className="text-sm text-muted-foreground">Hanya Owner yang dapat memulai build.</p>}
             {error && <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
-            {needsKeystore && <p className="text-sm text-muted-foreground">Build release membutuhkan keystore profile yang sudah disimpan. Pilih APK Debug untuk build testing tanpa keystore.</p>}
+            {needsKeystore && <p className="text-sm text-muted-foreground">Build release membutuhkan keystore profile dengan password yang sudah disimpan. Pilih APK Debug untuk build testing tanpa keystore.</p>}
             <div className="flex flex-col gap-2 border-b pb-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-end">
               <div className="space-y-1.5 sm:mr-auto sm:w-72">
                 <Label htmlFor="build-variant">Output build</Label>
@@ -486,7 +545,7 @@ export function PlatformBuildsSection() {
                   {(Object.keys(buildVariantOptions) as BuildVariantOption[]).map((key) => <option key={key} value={key}>{buildVariantOptions[key].label}</option>)}
                 </select>
               </div>
-              <Button type="button" variant="outline" onClick={() => void handleSave()} disabled={!isOwner || saving || iconUploading || splashUploading || !form.appName.trim() || !form.bundleId.trim() || !form.targetUrl.trim() || !form.versionName.trim() || !Number.isInteger(Number(form.versionCode)) || Number(form.versionCode) < 1 || (!form.keystoreProfileId && Boolean(keystoreFile) && (!form.keystoreName.trim() || !form.keystoreAlias.trim() || !form.passwordSecretRef.trim() || !form.keyPasswordSecretRef.trim()))}>
+              <Button type="button" variant="outline" onClick={() => void handleSave()} disabled={!isOwner || saving || iconUploading || splashUploading || !form.appName.trim() || !form.bundleId.trim() || !form.targetUrl.trim() || !form.versionName.trim() || !Number.isInteger(Number(form.versionCode)) || Number(form.versionCode) < 1 || (!form.keystoreProfileId && Boolean(keystoreFile) && (!form.keystoreName.trim() || !form.keystoreAlias.trim() || !passwordsValid)) || (Boolean(form.keystoreProfileId) && passwordsDirty && !passwordsValid)}>
                 <Save className="mr-2 h-4 w-4" />{saving ? 'Saving...' : 'Simpan'}
               </Button>
               <Button type="button" onClick={() => void handleSubmit()} disabled={!canSubmit || !configId || submitting || iconUploading || splashUploading}>

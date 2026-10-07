@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
   const outgoing = new FormData();
   outgoing.append('file', file, file instanceof File ? file.name : 'keystore.jks');
-  for (const field of ['name', 'alias', 'passwordSecretRef', 'keyPasswordSecretRef']) {
+  for (const field of ['name', 'alias', 'storePassword', 'keyPassword']) {
     const value = incoming.get(field);
     if (typeof value === 'string') outgoing.append(field, value);
   }

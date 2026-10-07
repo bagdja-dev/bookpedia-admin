@@ -272,12 +272,17 @@ export interface PlatformKeystoreProfile {
   platform_id: string | null;
   name: string;
   alias: string;
-  file_ref: string;
-  password_secret_ref: string;
-  key_password_secret_ref: string | null;
+  /** true = password tersimpan terenkripsi di Bookpedia; buka lewat GET .../passwords. */
+  has_passwords: boolean;
   status: 'active' | 'inactive';
   created_at: string;
   updated_at: string;
+}
+
+/** Password keystore asli (hanya saat Owner membukanya atau mengubahnya). */
+export interface PlatformKeystorePasswords {
+  storePassword: string;
+  keyPassword: string;
 }
 
 export interface PlatformBuildJob {
