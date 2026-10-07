@@ -512,7 +512,14 @@ export function PlatformBuildsSection() {
                         <TableRow key={job.id}>
                           <TableCell className="font-mono text-xs">{job.id.slice(0, 8)}</TableCell>
                           <TableCell><Badge className={statusTone[job.status] ?? 'bg-slate-100 text-slate-700'}>{statusLabels[job.status] ?? job.status}</Badge></TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">{formatVariant(job)}</TableCell>
+                          <TableCell className="text-sm">
+                            <div className="whitespace-nowrap">{formatVariant(job)}</div>
+                            {job.signing_cert_sha256 && (
+                              <div className="max-w-48 truncate font-mono text-[10px] text-muted-foreground" title={`SHA-256: ${job.signing_cert_sha256}`}>
+                                SHA-256 {job.signing_cert_sha256}
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="min-w-36">
                             <div className="text-sm">{job.progress ?? 0}%</div>
                             {job.stage && <div className="text-xs text-muted-foreground">{job.stage}</div>}

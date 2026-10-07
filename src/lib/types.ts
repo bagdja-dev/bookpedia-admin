@@ -290,6 +290,9 @@ export interface PlatformBuildJob {
   stage: string | null;
   build_type?: PlatformBuildType | null;
   output_format?: PlatformBuildOutputFormat | null;
+  bundle_id?: string | null;
+  /** SHA-256 sertifikat penanda tangan artifact; otomatis masuk ke Android App Links Platform. */
+  signing_cert_sha256?: string | null;
   artifact_url: string | null;
   log_url: string | null;
   error_message: string | null;

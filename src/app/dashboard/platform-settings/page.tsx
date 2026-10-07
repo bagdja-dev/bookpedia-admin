@@ -1062,8 +1062,9 @@ export default function PlatformSettingsPage() {
                   <p className="text-xs text-muted-foreground">
                     Dibalas otomatis di <span className="font-mono">/.well-known/assetlinks.json</span> pada domain
                     manapun yang resolve ke Platform ini. Wajib supaya app TWA tampil layar penuh tanpa URL bar.
-                    Isi package name app dan SHA-256 sertifikat penanda tangan: release/upload key, &ldquo;App signing
-                    key certificate&rdquo; dari Play Console (Setup &rarr; App signing), dan debug key bila menguji APK Debug.
+                    Package name dan SHA-256 dari setiap build sukses di Platform Build terisi otomatis. Yang perlu
+                    ditambahkan manual hanya &ldquo;App signing key certificate&rdquo; dari Play Console (Setup &rarr; App
+                    signing) setelah app diunggah ke Play Store.
                   </p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
