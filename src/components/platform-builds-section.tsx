@@ -15,6 +15,7 @@ import { ApiError, apiClient } from '@/lib/api-client';
 import type {
   CreatePlatformBuildJobPayload,
   PlatformBuildConfig,
+  PlatformBuildDisplayMode,
   PlatformBuildJob,
   PlatformBuildJobStatus,
   PlatformBuildOutputFormat,
@@ -52,6 +53,13 @@ const buildVariantOptions: Record<BuildVariantOption, { label: string; buildType
   'apk-release': { label: 'APK Release (instal langsung)', buildType: 'release', outputFormat: 'apk' },
   'apk-debug': { label: 'APK Debug (testing, tanpa keystore)', buildType: 'debug', outputFormat: 'apk' },
 };
+
+const displayModeOptions: Record<PlatformBuildDisplayMode, string> = {
+  standalone: 'Standar (status & navigation bar terlihat)',
+  fullscreen: 'Layar penuh (bar muncul saat diusap)',
+  'fullscreen-sticky': 'Layar penuh sticky (bar muncul sebentar lalu sembunyi)',
+};
+const DEFAULT_DIVIDER_COLOR = '#E5E5E5';
 
 function formatVariant(job: PlatformBuildJob) {
   if (!job.output_format || !job.build_type) return '-';
@@ -120,6 +128,9 @@ export function PlatformBuildsSection() {
     primaryColor: '#7C3AED',
     splashColor: '#0F172A',
     navigationBarColor: '#0F172A',
+    /** Kosong = tanpa garis pemisah di atas navigation bar. */
+    navigationBarDividerColor: '',
+    displayMode: 'standalone' as PlatformBuildDisplayMode,
     keystoreProfileId: '',
     keystoreName: '',
     keystoreAlias: '',
@@ -200,6 +211,9 @@ export function PlatformBuildsSection() {
       primaryColor: '#7C3AED',
       splashColor: '#0F172A',
       navigationBarColor: '#0F172A',
+    /** Kosong = tanpa garis pemisah di atas navigation bar. */
+    navigationBarDividerColor: '',
+    displayMode: 'standalone' as PlatformBuildDisplayMode,
       keystoreProfileId: '',
       keystoreName: '',
       keystoreAlias: '',
@@ -219,7 +233,7 @@ export function PlatformBuildsSection() {
       setKeystoreProfiles(profiles);
       if (config) {
         const flags = config.build_flags ?? {};
-        const theme = (flags.theme ?? {}) as { primaryColor?: string; splashColor?: string; navigationBarColor?: string };
+        const theme = (flags.theme ?? {}) as { primaryColor?: string; splashColor?: string; navigationBarColor?: string; navigationBarDividerColor?: string };
         setConfigId(config.id);
         setForm((current) => ({
           ...current,
@@ -235,6 +249,10 @@ export function PlatformBuildsSection() {
           splashColor: theme.splashColor ?? current.splashColor,
           // Config lama belum punya warna navigation bar: builder dulu memakai warna splash.
           navigationBarColor: theme.navigationBarColor ?? theme.splashColor ?? current.navigationBarColor,
+          navigationBarDividerColor: theme.navigationBarDividerColor ?? '',
+          displayMode: typeof flags.displayMode === 'string' && flags.displayMode in displayModeOptions
+            ? flags.displayMode as PlatformBuildDisplayMode
+            : 'standalone',
           keystoreProfileId: config.keystore_profile_id ?? '',
         }));
       }
@@ -250,6 +268,15 @@ export function PlatformBuildsSection() {
       setError(err instanceof ApiError ? err.message : 'Gagal memuat pengaturan build.');
     });
   }, [activePlatform?.id]);
+
+  function buildTheme() {
+    return {
+      primaryColor: form.primaryColor,
+      splashColor: form.splashColor,
+      navigationBarColor: form.navigationBarColor,
+      ...(form.navigationBarDividerColor ? { navigationBarDividerColor: form.navigationBarDividerColor } : {}),
+    };
+  }
 
   function handleChange(field: keyof typeof form, value: string) {
     setConfigId(null);
@@ -347,7 +374,8 @@ export function PlatformBuildsSection() {
             targetUrl: form.targetUrl.trim(),
             iconUrl: form.iconUrl.trim(),
             splashImageUrl: form.splashImageUrl.trim(),
-            theme: { primaryColor: form.primaryColor, splashColor: form.splashColor, navigationBarColor: form.navigationBarColor },
+            theme: buildTheme(),
+            displayMode: form.displayMode,
           },
         }),
       });
@@ -370,7 +398,8 @@ export function PlatformBuildsSection() {
       targetUrl: form.targetUrl.trim(),
       iconUrl: form.iconUrl.trim() || undefined,
       splashImageUrl: form.splashImageUrl.trim() || undefined,
-      theme: { primaryColor: form.primaryColor, splashColor: form.splashColor, navigationBarColor: form.navigationBarColor },
+      theme: buildTheme(),
+      displayMode: form.displayMode,
       configId,
       buildType: buildVariantOptions[buildVariant].buildType,
       outputFormat: buildVariantOptions[buildVariant].outputFormat,
@@ -451,6 +480,26 @@ export function PlatformBuildsSection() {
                 value={form.navigationBarColor}
                 onChange={(value) => handleChange('navigationBarColor', value)}
               />
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.navigationBarDividerColor)}
+                    onChange={(e) => handleChange('navigationBarDividerColor', e.target.checked ? DEFAULT_DIVIDER_COLOR : '')}
+                    className="h-4 w-4"
+                  />
+                  Garis pemisah di atas navigation bar
+                </label>
+                {form.navigationBarDividerColor
+                  ? <ColorField id="build-navigation-divider-color" label="Warna garis pemisah" value={form.navigationBarDividerColor} onChange={(value) => handleChange('navigationBarDividerColor', value)} />
+                  : <p className="text-xs text-muted-foreground">Berguna bila warna navigation bar sama dengan latar halaman.</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="build-display-mode">Mode tampilan</Label>
+                <select id="build-display-mode" value={form.displayMode} onChange={(e) => handleChange('displayMode', e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm">
+                  {(Object.keys(displayModeOptions) as PlatformBuildDisplayMode[]).map((mode) => <option key={mode} value={mode}>{displayModeOptions[mode]}</option>)}
+                </select>
+              </div>
               </div>
             </div>
 

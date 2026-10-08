@@ -311,9 +311,13 @@ export interface PlatformBuildJob {
   config?: PlatformBuildConfig | null;
 }
 
+/** Mode tampilan TWA (Android Browser Helper DISPLAY_MODE). */
+export type PlatformBuildDisplayMode = 'standalone' | 'fullscreen' | 'fullscreen-sticky';
+
 export interface CreatePlatformBuildJobPayload {
   platformId: string;
   configId?: string | null;
+  displayMode?: PlatformBuildDisplayMode;
   buildType?: PlatformBuildType;
   outputFormat?: PlatformBuildOutputFormat;
   appName?: string;
