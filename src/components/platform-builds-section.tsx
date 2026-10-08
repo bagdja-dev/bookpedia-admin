@@ -58,6 +58,34 @@ function formatVariant(job: PlatformBuildJob) {
   return `${job.output_format.toUpperCase()} · ${job.build_type === 'debug' ? 'Debug' : 'Release'}`;
 }
 
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+function ColorField({ id, label, hint, value, onChange }: {
+  id: string;
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center gap-2">
+        <input
+          id={id}
+          type="color"
+          value={HEX_COLOR.test(value) ? value : '#000000'}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 w-9 shrink-0 cursor-pointer rounded border p-0.5"
+          aria-label={`${label} picker`}
+        />
+        <Input value={value} onChange={(e) => onChange(e.target.value)} className="font-mono text-xs" placeholder="#000000" aria-label={`${label} hex`} />
+      </div>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
 function formatDate(value: string | null | undefined) {
   if (!value) return '-';
   return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
@@ -91,6 +119,7 @@ export function PlatformBuildsSection() {
     splashImageUrl: '',
     primaryColor: '#7C3AED',
     splashColor: '#0F172A',
+    navigationBarColor: '#0F172A',
     keystoreProfileId: '',
     keystoreName: '',
     keystoreAlias: '',
@@ -170,6 +199,7 @@ export function PlatformBuildsSection() {
       splashImageUrl: '',
       primaryColor: '#7C3AED',
       splashColor: '#0F172A',
+      navigationBarColor: '#0F172A',
       keystoreProfileId: '',
       keystoreName: '',
       keystoreAlias: '',
@@ -189,7 +219,7 @@ export function PlatformBuildsSection() {
       setKeystoreProfiles(profiles);
       if (config) {
         const flags = config.build_flags ?? {};
-        const theme = (flags.theme ?? {}) as { primaryColor?: string; splashColor?: string };
+        const theme = (flags.theme ?? {}) as { primaryColor?: string; splashColor?: string; navigationBarColor?: string };
         setConfigId(config.id);
         setForm((current) => ({
           ...current,
@@ -203,6 +233,8 @@ export function PlatformBuildsSection() {
           versionCode: String(config.version_code),
           primaryColor: theme.primaryColor ?? current.primaryColor,
           splashColor: theme.splashColor ?? current.splashColor,
+          // Config lama belum punya warna navigation bar: builder dulu memakai warna splash.
+          navigationBarColor: theme.navigationBarColor ?? theme.splashColor ?? current.navigationBarColor,
           keystoreProfileId: config.keystore_profile_id ?? '',
         }));
       }
@@ -315,7 +347,7 @@ export function PlatformBuildsSection() {
             targetUrl: form.targetUrl.trim(),
             iconUrl: form.iconUrl.trim(),
             splashImageUrl: form.splashImageUrl.trim(),
-            theme: { primaryColor: form.primaryColor, splashColor: form.splashColor },
+            theme: { primaryColor: form.primaryColor, splashColor: form.splashColor, navigationBarColor: form.navigationBarColor },
           },
         }),
       });
@@ -338,7 +370,7 @@ export function PlatformBuildsSection() {
       targetUrl: form.targetUrl.trim(),
       iconUrl: form.iconUrl.trim() || undefined,
       splashImageUrl: form.splashImageUrl.trim() || undefined,
-      theme: { primaryColor: form.primaryColor, splashColor: form.splashColor },
+      theme: { primaryColor: form.primaryColor, splashColor: form.splashColor, navigationBarColor: form.navigationBarColor },
       configId,
       buildType: buildVariantOptions[buildVariant].buildType,
       outputFormat: buildVariantOptions[buildVariant].outputFormat,
@@ -410,53 +442,22 @@ export function PlatformBuildsSection() {
                 <Label htmlFor="build-version-code">Version code</Label>
                 <Input id="build-version-code" type="number" min="1" step="1" value={form.versionCode} onChange={(e) => handleChange('versionCode', e.target.value)} required />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="build-primary-color">Primary color</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="build-primary-color"
-                    type="color"
-                    value={/^#[0-9a-fA-F]{6}$/.test(form.primaryColor) ? form.primaryColor : '#000000'}
-                    onChange={(e) => handleChange('primaryColor', e.target.value)}
-                    className="h-9 w-9 shrink-0 cursor-pointer rounded border p-0.5"
-                    aria-label="Primary color picker"
-                  />
-                  <Input
-                    value={form.primaryColor}
-                    onChange={(e) => handleChange('primaryColor', e.target.value)}
-                    className="font-mono text-xs"
-                    placeholder="#000000"
-                    aria-label="Primary color hex"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="build-splash-color">Splash color</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="build-splash-color"
-                    type="color"
-                    value={/^#[0-9a-fA-F]{6}$/.test(form.splashColor) ? form.splashColor : '#000000'}
-                    onChange={(e) => handleChange('splashColor', e.target.value)}
-                    className="h-9 w-9 shrink-0 cursor-pointer rounded border p-0.5"
-                    aria-label="Splash color picker"
-                  />
-                  <Input
-                    value={form.splashColor}
-                    onChange={(e) => handleChange('splashColor', e.target.value)}
-                    className="font-mono text-xs"
-                    placeholder="#000000"
-                    aria-label="Splash color hex"
-                  />
-                </div>
-              </div>
+              <ColorField id="build-primary-color" label="Warna status bar (atas)" value={form.primaryColor} onChange={(value) => handleChange('primaryColor', value)} />
+              <ColorField id="build-splash-color" label="Warna latar splash" value={form.splashColor} onChange={(value) => handleChange('splashColor', value)} />
+              <ColorField
+                id="build-navigation-bar-color"
+                label="Warna navigation bar (bawah)"
+                hint="Tombol navigasi otomatis gelap/terang mengikuti kontras warna ini."
+                value={form.navigationBarColor}
+                onChange={(value) => handleChange('navigationBarColor', value)}
+              />
               </div>
             </div>
 
             <section className="space-y-4 border-t pt-5">
               <div>
                 <h3 className="text-base font-semibold">Icon &amp; splash screen</h3>
-                <p className="text-sm text-muted-foreground">Diunggah khusus untuk app Android, terpisah dari logo Platform. Gunakan PNG; icon persegi minimal 512×512 dengan ruang kosong di tepi, splash dengan latar transparan (ditampilkan di tengah di atas Splash color, maks 1024px).</p>
+                <p className="text-sm text-muted-foreground">Diunggah khusus untuk app Android, terpisah dari logo Platform. Gunakan PNG; icon persegi minimal 512×512 dengan ruang kosong di tepi, splash dengan latar transparan (ditampilkan di tengah di atas warna latar splash, maks 1024px).</p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <ImageUpload
