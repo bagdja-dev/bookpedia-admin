@@ -95,6 +95,8 @@ export interface Platform {
   copyAttributionEnabled: boolean;
   /** Panjang maksimal potongan yang tersalin (20–2000). */
   copyAttributionMaxChars: number;
+  /** Share Chapter — panjang maksimal potongan paragraf di halaman preview (100–2000). */
+  chapterPreviewMaxChars: number;
   seoDefaultH1: string | null;
   seoDefaultTitle: string | null;
   seoDefaultDescription: string | null;
@@ -211,6 +213,7 @@ export interface CreatePlatformPayload {
   blockContentCopy?: boolean;
   copyAttributionEnabled?: boolean;
   copyAttributionMaxChars?: number;
+  chapterPreviewMaxChars?: number;
   seoDefaultH1?: string;
   seoDefaultTitle?: string;
   seoDefaultDescription?: string;
@@ -270,6 +273,7 @@ export interface UpdatePlatformPayload {
   blockContentCopy?: boolean;
   copyAttributionEnabled?: boolean;
   copyAttributionMaxChars?: number;
+  chapterPreviewMaxChars?: number;
   seoDefaultH1?: string | null;
   seoDefaultTitle?: string | null;
   seoDefaultDescription?: string | null;
