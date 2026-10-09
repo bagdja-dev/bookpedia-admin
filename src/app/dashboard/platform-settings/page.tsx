@@ -69,6 +69,7 @@ interface FormState {
   blockContentCopy: boolean;
   copyAttributionEnabled: boolean;
   copyAttributionMaxChars: string;
+  chapterPreviewMaxChars: string;
   seoDefaultH1: string;
   seoDefaultTitle: string;
   seoDefaultDescription: string;
@@ -105,6 +106,7 @@ const EMPTY_FORM: FormState = {
   blockContentCopy: false,
   copyAttributionEnabled: true,
   copyAttributionMaxChars: '200',
+  chapterPreviewMaxChars: '400',
   seoDefaultH1: '{{title}}',
   seoDefaultTitle: '{{title}} — {{platform}}',
   seoDefaultDescription: 'Baca {{title}} di {{platform}}.',
@@ -142,6 +144,7 @@ function platformToForm(platform: Platform): FormState {
     blockContentCopy: platform.blockContentCopy ?? false,
     copyAttributionEnabled: platform.copyAttributionEnabled ?? true,
     copyAttributionMaxChars: String(platform.copyAttributionMaxChars ?? 200),
+    chapterPreviewMaxChars: String(platform.chapterPreviewMaxChars ?? 400),
     seoDefaultH1: platform.seoDefaultH1 ?? '',
     seoDefaultTitle: platform.seoDefaultTitle ?? '',
     seoDefaultDescription: platform.seoDefaultDescription ?? '',
@@ -422,6 +425,7 @@ export default function PlatformSettingsPage() {
         blockContentCopy: form.blockContentCopy,
         copyAttributionEnabled: form.copyAttributionEnabled,
         copyAttributionMaxChars: Math.min(2000, Math.max(20, Math.round(Number(form.copyAttributionMaxChars)) || 200)),
+        chapterPreviewMaxChars: Math.min(2000, Math.max(100, Math.round(Number(form.chapterPreviewMaxChars)) || 400)),
         seoDefaultH1: form.seoDefaultH1.trim() || undefined,
         seoDefaultTitle: form.seoDefaultTitle.trim() || undefined,
         seoDefaultDescription: form.seoDefaultDescription.trim() || undefined,
@@ -886,11 +890,29 @@ export default function PlatformSettingsPage() {
                     onChange={(e) => updateField('enableShare', e.target.checked)}
                     className="mt-1"
                   />
-                  <div>
-                    <Label htmlFor="enableShare">Aktifkan Share</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Tombol Share (bagikan link Chapter) di halaman baca Chapter.
-                    </p>
+                  <div className="flex-1 space-y-2">
+                    <div>
+                      <Label htmlFor="enableShare">Aktifkan Share</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Tombol Share di halaman baca Chapter. Yang dibagikan adalah halaman preview
+                        (/book/&#123;slug&#125;/chapter/&#123;n&#125;/preview): paragraf pertama Chapter + tombol
+                        login untuk lanjut membaca — terbaca mesin pencari &amp; kartu sosmed.
+                      </p>
+                    </div>
+                    <div className="max-w-xs space-y-1.5">
+                      <Label htmlFor="chapterPreviewMaxChars">Panjang preview share (karakter)</Label>
+                      <Input
+                        id="chapterPreviewMaxChars"
+                        type="number"
+                        min={100}
+                        max={2000}
+                        value={form.chapterPreviewMaxChars}
+                        onChange={(e) => updateField('chapterPreviewMaxChars', e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        100–2000 karakter dari paragraf pertama (dipotong di batas kata). Default 400.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
