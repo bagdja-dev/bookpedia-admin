@@ -66,6 +66,10 @@ interface FormState {
   enableLike: boolean;
   enableComment: boolean;
   enableShare: boolean;
+  blockContentCopy: boolean;
+  copyAttributionEnabled: boolean;
+  copyAttributionMaxChars: string;
+  chapterPreviewMaxChars: string;
   seoDefaultH1: string;
   seoDefaultTitle: string;
   seoDefaultDescription: string;
@@ -99,6 +103,10 @@ const EMPTY_FORM: FormState = {
   enableLike: true,
   enableComment: true,
   enableShare: true,
+  blockContentCopy: false,
+  copyAttributionEnabled: true,
+  copyAttributionMaxChars: '200',
+  chapterPreviewMaxChars: '400',
   seoDefaultH1: '{{title}}',
   seoDefaultTitle: '{{title}} — {{platform}}',
   seoDefaultDescription: 'Baca {{title}} di {{platform}}.',
@@ -133,6 +141,10 @@ function platformToForm(platform: Platform): FormState {
     enableLike: platform.enableLike ?? true,
     enableComment: platform.enableComment ?? true,
     enableShare: platform.enableShare ?? true,
+    blockContentCopy: platform.blockContentCopy ?? false,
+    copyAttributionEnabled: platform.copyAttributionEnabled ?? true,
+    copyAttributionMaxChars: String(platform.copyAttributionMaxChars ?? 200),
+    chapterPreviewMaxChars: String(platform.chapterPreviewMaxChars ?? 400),
     seoDefaultH1: platform.seoDefaultH1 ?? '',
     seoDefaultTitle: platform.seoDefaultTitle ?? '',
     seoDefaultDescription: platform.seoDefaultDescription ?? '',
@@ -410,6 +422,10 @@ export default function PlatformSettingsPage() {
         enableLike: form.enableLike,
         enableComment: form.enableComment,
         enableShare: form.enableShare,
+        blockContentCopy: form.blockContentCopy,
+        copyAttributionEnabled: form.copyAttributionEnabled,
+        copyAttributionMaxChars: Math.min(2000, Math.max(20, Math.round(Number(form.copyAttributionMaxChars)) || 200)),
+        chapterPreviewMaxChars: Math.min(2000, Math.max(100, Math.round(Number(form.chapterPreviewMaxChars)) || 400)),
         seoDefaultH1: form.seoDefaultH1.trim() || undefined,
         seoDefaultTitle: form.seoDefaultTitle.trim() || undefined,
         seoDefaultDescription: form.seoDefaultDescription.trim() || undefined,
@@ -874,11 +890,29 @@ export default function PlatformSettingsPage() {
                     onChange={(e) => updateField('enableShare', e.target.checked)}
                     className="mt-1"
                   />
-                  <div>
-                    <Label htmlFor="enableShare">Aktifkan Share</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Tombol Share (bagikan link Chapter) di halaman baca Chapter.
-                    </p>
+                  <div className="flex-1 space-y-2">
+                    <div>
+                      <Label htmlFor="enableShare">Aktifkan Share</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Tombol Share di halaman baca Chapter. Yang dibagikan adalah halaman preview
+                        (/book/&#123;slug&#125;/chapter/&#123;n&#125;/preview): paragraf pertama Chapter + tombol
+                        login untuk lanjut membaca — terbaca mesin pencari &amp; kartu sosmed.
+                      </p>
+                    </div>
+                    <div className="max-w-xs space-y-1.5">
+                      <Label htmlFor="chapterPreviewMaxChars">Panjang preview share (karakter)</Label>
+                      <Input
+                        id="chapterPreviewMaxChars"
+                        type="number"
+                        min={100}
+                        max={2000}
+                        value={form.chapterPreviewMaxChars}
+                        onChange={(e) => updateField('chapterPreviewMaxChars', e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        100–2000 karakter dari paragraf pertama (dipotong di batas kata). Default 400.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -886,6 +920,68 @@ export default function PlatformSettingsPage() {
                   Kalau Like, Comment, dan Share ketiganya dinonaktifkan, seluruh bar disembunyikan
                   total di halaman baca (tidak ada elemen lain yang dipertahankan sendirian).
                 </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <Label>Perlindungan konten</Label>
+                <p className="text-xs text-muted-foreground">
+                  Berlaku di isi Chapter pada halaman baca. Ini penghalang ringan untuk pembaca biasa —
+                  screenshot, view source, atau scraper tetap tidak bisa dicegah sepenuhnya. Seleksi teks
+                  tetap aktif supaya fitur highlight berjalan.
+                </p>
+              </div>
+
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  id="blockContentCopy"
+                  checked={form.blockContentCopy}
+                  onChange={(e) => updateField('blockContentCopy', e.target.checked)}
+                  className="mt-1"
+                />
+                <div>
+                  <Label htmlFor="blockContentCopy">Blok klik kanan &amp; salin</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Menu klik kanan dan aksi salin/potong (Ctrl/Cmd+C, menu Salin) di isi Chapter
+                    tidak menghasilkan apa pun. Bila aktif, atribusi di bawah tidak dipakai.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  id="copyAttributionEnabled"
+                  checked={form.copyAttributionEnabled}
+                  disabled={form.blockContentCopy}
+                  onChange={(e) => updateField('copyAttributionEnabled', e.target.checked)}
+                  className="mt-1"
+                />
+                <div className="flex-1 space-y-2">
+                  <div>
+                    <Label htmlFor="copyAttributionEnabled">Atribusi saat menyalin</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Teks yang disalin hanya berupa potongan, ditambah &ldquo;Baca selengkapnya&rdquo; dan
+                      tautan ke Chapter — kutipan yang beredar jadi promosi.
+                    </p>
+                  </div>
+                  {form.copyAttributionEnabled && !form.blockContentCopy && (
+                    <div className="max-w-xs space-y-1.5">
+                      <Label htmlFor="copyAttributionMaxChars">Maksimal karakter yang tersalin</Label>
+                      <Input
+                        id="copyAttributionMaxChars"
+                        type="number"
+                        min={20}
+                        max={2000}
+                        value={form.copyAttributionMaxChars}
+                        onChange={(e) => updateField('copyAttributionMaxChars', e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">20–2000 karakter. Default 200.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
