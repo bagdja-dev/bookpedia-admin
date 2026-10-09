@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { GripVertical, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { HomepageManualBooksEditor } from '@/components/homepage-manual-books-editor';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient } from '@/lib/api-client';
-import type { Category, CatalogSectionConfig, Genre, UpdatePlatformPayload } from '@/lib/types';
+import type { Category, CatalogSectionConfig, Genre, HomepageSectionBook, Platform, UpdatePlatformPayload } from '@/lib/types';
 
 const DEFAULT_SECTIONS: CatalogSectionConfig[] = [
   { key: 'top', title: 'Top / Hot', enabled: true, queryType: 'predefined', predefinedQuery: 'top', layout: 'slider', limit: 10, pageSize: 10, lazyLoad: true },
@@ -43,6 +44,13 @@ export default function HomepageSettingsPage() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
+  /** Daftar Book section mode manual, per `section.key`; `dirty` = berubah dan disimpan saat Simpan. */
+  const [manualBooks, setManualBooks] = useState<{
+    platformId: string | null;
+    lists: Record<string, HomepageSectionBook[]>;
+    dirty: string[];
+  }>({ platformId: null, lists: {}, dirty: [] });
+  const [loadingManualKey, setLoadingManualKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activePlatform) {
@@ -90,6 +98,47 @@ export default function HomepageSettingsPage() {
 
   function updateSection(index: number, patch: Partial<CatalogSectionConfig>) {
     setSections((current) => current.map((section, itemIndex) => itemIndex === index ? { ...section, ...patch } : section));
+    if (patch.queryType === 'manual') void ensureManualBooksLoaded(sections[index]);
+  }
+
+  const manualLists = manualBooks.platformId === activePlatformId ? manualBooks.lists : {};
+  const manualDirty = manualBooks.platformId === activePlatformId ? manualBooks.dirty : [];
+
+  /** Muat daftar Book section manual yang sudah tersimpan (sekali per section). */
+  async function ensureManualBooksLoaded(section: CatalogSectionConfig | undefined) {
+    if (!section || manualLists[section.key]) return;
+    const persisted = section.id && activePlatform?.homepageSections?.some((item) => item.id === section.id);
+    if (!persisted) {
+      setManualList(section.key, [], false);
+      return;
+    }
+    setLoadingManualKey(section.key);
+    try {
+      const books = await apiClient<HomepageSectionBook[]>(
+        `/platforms/${activePlatformId}/homepage-sections/${section.id}/books`,
+      );
+      setManualList(section.key, books, false);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : 'Gagal memuat daftar Book section.');
+    } finally {
+      setLoadingManualKey(null);
+    }
+  }
+
+  function setManualList(sectionKey: string, books: HomepageSectionBook[], dirty: boolean) {
+    setManualBooks((current) => {
+      const base = current.platformId === activePlatformId ? current : { platformId: activePlatformId, lists: {}, dirty: [] };
+      return {
+        platformId: activePlatformId,
+        lists: { ...base.lists, [sectionKey]: books },
+        dirty: dirty ? [...new Set([...base.dirty, sectionKey])] : base.dirty,
+      };
+    });
+  }
+
+  function openSection(index: number) {
+    setEditingIndex(index);
+    if (sections[index]?.queryType === 'manual') void ensureManualBooksLoaded(sections[index]);
   }
 
   function updateCustomQuery(index: number, key: string, value: string) {
@@ -175,7 +224,18 @@ export default function HomepageSettingsPage() {
           pageSize: Math.min(50, Math.max(4, Number(section.pageSize) || Number(section.limit) || 10)),
         })),
       };
-      await apiClient(`/platforms/${activePlatformId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      const updated = await apiClient<Platform>(`/platforms/${activePlatformId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      // Server memberi `id` permanen ke section baru; urutan section tetap sama dengan payload.
+      for (const [index, section] of sections.entries()) {
+        const sectionId = updated.homepageSections?.[index]?.id;
+        if (section.queryType !== 'manual' || !sectionId || !manualDirty.includes(section.key)) continue;
+        await apiClient(`/platforms/${activePlatformId}/homepage-sections/${sectionId}/books`, {
+          method: 'PUT',
+          body: JSON.stringify({ bookIds: (manualLists[section.key] ?? []).map((book) => book.id) }),
+        });
+      }
+      setManualBooks({ platformId: activePlatformId, lists: manualLists, dirty: [] });
+      setSectionState({ platformId: activePlatformId, sections: normalizeSections(updated.homepageSections) });
       await refresh();
       toast.success('Pengaturan homepage berhasil disimpan.');
     } catch (error) {
@@ -224,12 +284,14 @@ export default function HomepageSettingsPage() {
               <div className="min-w-0 flex-1">
                 <CardTitle className="text-base">{section.title || `Section ${index + 1}`}</CardTitle>
                 <CardDescription>
-                  {section.queryType === 'custom'
-                    ? `Custom: ${section.customQuery?.search || 'Filter terstruktur'}`
-                    : `Predefined: ${section.predefinedQuery === 'top' ? 'Top / Hot' : 'New Updated'}`}
+                  {section.queryType === 'manual'
+                    ? `Manual: ${manualLists[section.key] ? `${manualLists[section.key].length} book dipilih` : 'pilih book satu per satu'}`
+                    : section.queryType === 'custom'
+                      ? `Custom: ${section.customQuery?.search || 'Filter terstruktur'}`
+                      : `Predefined: ${section.predefinedQuery === 'top' ? 'Top / Hot' : 'New Updated'}`}
                 </CardDescription>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => setEditingIndex(index)}>
+              <Button type="button" variant="outline" size="sm" onClick={() => openSection(index)}>
                 <Pencil className="h-3.5 w-3.5" />
                 Edit
               </Button>
@@ -240,7 +302,8 @@ export default function HomepageSettingsPage() {
             <CardContent className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className="rounded-full bg-muted px-2 py-1">{section.enabled ? 'Aktif' : 'Nonaktif'}</span>
               <span className="rounded-full bg-muted px-2 py-1">{section.layout === 'grid' ? 'Grid' : 'Slider'}</span>
-              <span className="rounded-full bg-muted px-2 py-1">{section.pageSize ?? section.limit} book</span>
+              {section.queryType !== 'manual' && <span className="rounded-full bg-muted px-2 py-1">{section.pageSize ?? section.limit} book</span>}
+              {manualDirty.includes(section.key) && <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-700">Belum disimpan</span>}
               <span className="ml-auto">Tarik card untuk mengubah urutan</span>
             </CardContent>
           </Card>
@@ -252,7 +315,7 @@ export default function HomepageSettingsPage() {
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Edit section homepage</DialogTitle>
-              <DialogDescription>Atur judul, query, layout, dan pagination section ini.</DialogDescription>
+              <DialogDescription>Atur judul, query (termasuk pilih book manual), layout, dan pagination section ini.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-2 md:grid-cols-2">
               <div className="space-y-1.5 md:col-span-2">
@@ -275,12 +338,30 @@ export default function HomepageSettingsPage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Query</Label>
-                <Select value={sections[editingIndex].queryType ?? 'predefined'} onValueChange={(value: 'predefined' | 'custom') => updateSection(editingIndex, { queryType: value })}>
+                <Select value={sections[editingIndex].queryType ?? 'predefined'} onValueChange={(value: 'predefined' | 'custom' | 'manual') => updateSection(editingIndex, { queryType: value })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="predefined">Predefined</SelectItem><SelectItem value="custom">Custom</SelectItem></SelectContent>
+                  <SelectContent>
+                    <SelectItem value="predefined">Predefined</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                    <SelectItem value="manual">Manual (pilih book)</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
-              {sections[editingIndex].queryType !== 'custom' ? (
+              {sections[editingIndex].queryType === 'manual' ? (
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Book dipilih</Label>
+                  {loadingManualKey === sections[editingIndex].key ? (
+                    <p className="text-sm text-muted-foreground">Memuat daftar book…</p>
+                  ) : (
+                    <HomepageManualBooksEditor
+                      items={manualLists[sections[editingIndex].key] ?? []}
+                      onChange={(books) => setManualList(sections[editingIndex].key, books, true)}
+                      platformSlug={activePlatform.slug}
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground">Perubahan disimpan saat menekan tombol Simpan di halaman ini.</p>
+                </div>
+              ) : sections[editingIndex].queryType !== 'custom' ? (
                 <div className="space-y-1.5">
                   <Label>Predefined query</Label>
                   <Select value={sections[editingIndex].predefinedQuery ?? 'new_updated'} onValueChange={(value: 'top' | 'new_updated') => updateSection(editingIndex, { predefinedQuery: value, type: value })}>
@@ -391,14 +472,18 @@ export default function HomepageSettingsPage() {
                   </div>
                 </div>
               )}
-              <div className="space-y-1.5">
-                <Label>Page size</Label>
-                <Input type="number" min={4} max={50} value={sections[editingIndex].pageSize ?? sections[editingIndex].limit} onChange={(event) => updateSection(editingIndex, { pageSize: Number(event.target.value) || 10, limit: Number(event.target.value) || 10 })} />
-              </div>
-              <label className="flex items-center gap-2 text-sm md:col-span-2">
-                <input type="checkbox" checked={sections[editingIndex].lazyLoad ?? true} onChange={(event) => updateSection(editingIndex, { lazyLoad: event.target.checked })} />
-                Lazy load section
-              </label>
+              {sections[editingIndex].queryType !== 'manual' && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label>Page size</Label>
+                    <Input type="number" min={4} max={50} value={sections[editingIndex].pageSize ?? sections[editingIndex].limit} onChange={(event) => updateSection(editingIndex, { pageSize: Number(event.target.value) || 10, limit: Number(event.target.value) || 10 })} />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm md:col-span-2">
+                    <input type="checkbox" checked={sections[editingIndex].lazyLoad ?? true} onChange={(event) => updateSection(editingIndex, { lazyLoad: event.target.checked })} />
+                    Lazy load section
+                  </label>
+                </>
+              )}
             </div>
             <DialogFooter>
               <Button type="button" onClick={() => setEditingIndex(null)}>Selesai</Button>

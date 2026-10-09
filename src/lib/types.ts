@@ -22,11 +22,14 @@ export interface PlatformColors {
 }
 
 export interface CatalogSectionConfig {
+  /** UUID permanen dari server — acuan daftar Book section mode `manual`. */
+  id?: string;
   key: string;
   title: string;
   enabled: boolean;
   type?: 'top' | 'new_updated';
-  queryType?: 'predefined' | 'custom';
+  /** `manual` = Book dipilih satu per satu (GET/PUT /platforms/:id/homepage-sections/:sectionId/books). */
+  queryType?: 'predefined' | 'custom' | 'manual';
   predefinedQuery?: 'top' | 'new_updated';
   customQuery?: {
     genre?: string | string[];
@@ -208,6 +211,27 @@ export interface CreatePlatformPayload {
   seoPrefix?: string;
   seoSuffix?: string;
   termsAndConditions?: string;
+}
+
+/** Book di section homepage mode manual (`HomepageSectionBookDto`). */
+export interface HomepageSectionBook {
+  id: string;
+  judul: string;
+  slug: string;
+  coverUrl: string | null;
+  libraryNama: string;
+  /** false = sedang tidak published, tersimpan tapi tidak tampil di homepage. */
+  isVisible: boolean;
+}
+
+/** Bagian `BookCatalogDto` publik yang dipakai picker Book. */
+export interface CatalogBookSearchResult {
+  id: string;
+  judul: string;
+  slug: string;
+  coverUrl: string | null;
+  library: { nama: string };
+  genre?: { nama: string } | null;
 }
 
 export interface UpdatePlatformPayload {
