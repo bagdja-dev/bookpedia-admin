@@ -89,6 +89,12 @@ export interface Platform {
   enableComment: boolean;
   /** Fase 8 — nyala/mati tombol Share di ChapterEngagementBar. */
   enableShare: boolean;
+  /** Perlindungan konten — blok klik kanan + salin/potong di isi Chapter. */
+  blockContentCopy: boolean;
+  /** Perlindungan konten — atribusi (potongan + tautan sumber) saat isi Chapter disalin. */
+  copyAttributionEnabled: boolean;
+  /** Panjang maksimal potongan yang tersalin (20–2000). */
+  copyAttributionMaxChars: number;
   seoDefaultH1: string | null;
   seoDefaultTitle: string | null;
   seoDefaultDescription: string | null;
@@ -202,6 +208,9 @@ export interface CreatePlatformPayload {
   enableLike?: boolean;
   enableComment?: boolean;
   enableShare?: boolean;
+  blockContentCopy?: boolean;
+  copyAttributionEnabled?: boolean;
+  copyAttributionMaxChars?: number;
   seoDefaultH1?: string;
   seoDefaultTitle?: string;
   seoDefaultDescription?: string;
@@ -258,6 +267,9 @@ export interface UpdatePlatformPayload {
   enableLike?: boolean;
   enableComment?: boolean;
   enableShare?: boolean;
+  blockContentCopy?: boolean;
+  copyAttributionEnabled?: boolean;
+  copyAttributionMaxChars?: number;
   seoDefaultH1?: string | null;
   seoDefaultTitle?: string | null;
   seoDefaultDescription?: string | null;
