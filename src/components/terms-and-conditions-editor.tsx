@@ -87,8 +87,11 @@ export function TermsAndConditionsEditor({ value, onChange, disabled = false }: 
   });
 
   useEffect(() => {
-    if (!editor) return;
-    editor.setEditable(!disabled);
+    if (!editor || editor.isEditable === !disabled) return;
+    // `emitUpdate: false` WAJIB — default TipTap memicu event `update`, yang lewat `onUpdate`
+    // menimpa nilai form dengan isi editor saat itu. Bila editor dibuat sebelum data Platform
+    // termuat, isinya masih kosong, sehingga Terms & Conditions tersimpan sebagai "<p></p>".
+    editor.setEditable(!disabled, false);
   }, [disabled, editor]);
 
   useEffect(() => {
