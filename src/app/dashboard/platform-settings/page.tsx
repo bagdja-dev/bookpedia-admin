@@ -80,6 +80,9 @@ interface FormState {
   seoPrefix: string;
   seoSuffix: string;
   termsAndConditions: string;
+  contactPhone: string;
+  contactWhatsapp: string;
+  contactEmail: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -117,6 +120,9 @@ const EMPTY_FORM: FormState = {
   seoPrefix: '',
   seoSuffix: '',
   termsAndConditions: '',
+  contactPhone: '',
+  contactWhatsapp: '',
+  contactEmail: '',
 };
 
 function platformToForm(platform: Platform): FormState {
@@ -155,6 +161,9 @@ function platformToForm(platform: Platform): FormState {
     seoPrefix: platform.seoPrefix ?? '',
     seoSuffix: platform.seoSuffix ?? '',
     termsAndConditions: platform.termsAndConditions ?? '',
+    contactPhone: platform.contactPhone ?? '',
+    contactWhatsapp: platform.contactWhatsapp ?? '',
+    contactEmail: platform.contactEmail ?? '',
   };
 }
 
@@ -360,6 +369,9 @@ export default function PlatformSettingsPage() {
         seoPrefix: form.seoPrefix.trim() || undefined,
         seoSuffix: form.seoSuffix.trim() || undefined,
         termsAndConditions: form.termsAndConditions.trim(),
+        contactPhone: form.contactPhone.trim() || null,
+        contactWhatsapp: form.contactWhatsapp.trim() || null,
+        contactEmail: form.contactEmail.trim() || null,
         // Cuma relevan saat edit (Platform belum punya id saat create) —
         // dikirim null kalau dikosongkan supaya bisa "dihapus" dari form ini.
         ...(!isCreating
@@ -952,6 +964,47 @@ export default function PlatformSettingsPage() {
                 onChange={(value) => updateField('termsAndConditions', value)}
                 disabled={submitting}
               />
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <Label>Kontak</Label>
+                <p className="text-xs text-muted-foreground">
+                  Tampil di halaman publik /contact (tautan &ldquo;Kontak&rdquo; di footer). Kolom yang dikosongkan tidak ditampilkan.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="contactPhone">No. telepon</Label>
+                  <Input
+                    id="contactPhone"
+                    type="tel"
+                    value={form.contactPhone}
+                    onChange={(e) => updateField('contactPhone', e.target.value)}
+                    placeholder="+62 21 555 0123"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="contactWhatsapp">No. WhatsApp</Label>
+                  <Input
+                    id="contactWhatsapp"
+                    type="tel"
+                    value={form.contactWhatsapp}
+                    onChange={(e) => updateField('contactWhatsapp', e.target.value)}
+                    placeholder="0812 3456 7890"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="contactEmail">Email</Label>
+                  <Input
+                    id="contactEmail"
+                    type="email"
+                    value={form.contactEmail}
+                    onChange={(e) => updateField('contactEmail', e.target.value)}
+                    placeholder="halo@novello.id"
+                  />
+                </div>
+              </div>
             </div>
 
             {!isCreating && (
