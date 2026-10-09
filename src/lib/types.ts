@@ -30,6 +30,23 @@ export interface CatalogSectionConfig {
   type?: 'top' | 'new_updated';
   /** `manual` = Book dipilih satu per satu (GET/PUT /platforms/:id/homepage-sections/:sectionId/books). */
   queryType?: 'predefined' | 'custom' | 'manual';
+  /** Halaman "Lihat semua" — /list/{slug}; kosong = dibuat server dari judul. */
+  slug?: string;
+  /** Slug lama (dikelola server, untuk redirect) — tidak perlu dikirim. */
+  previousSlugs?: string[];
+  /** Deskripsi yang tampil di atas daftar pada halaman list. */
+  description?: string;
+  /** SEO halaman list (token {{title}} {{platform}} {{prefix}} {{suffix}}). */
+  seoH1?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  seoOgTitle?: string;
+  seoOgDescription?: string;
+  seoOgType?: 'website' | 'book' | 'profile';
+  seoPrefix?: string;
+  seoSuffix?: string;
+  /** og:image kartu sosmed; kosong = cover Book pertama. */
+  seoOgImageUrl?: string;
   predefinedQuery?: 'top' | 'new_updated';
   customQuery?: {
     genre?: string | string[];
