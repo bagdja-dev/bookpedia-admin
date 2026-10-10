@@ -66,6 +66,29 @@ export interface CatalogSectionConfig {
   pageSize?: number;
 }
 
+/** Key font kurasi teks bacaan — sama dengan API & reader app. */
+export type ReadingFontFamily =
+  | 'source-serif-4'
+  | 'merriweather'
+  | 'lora'
+  | 'literata'
+  | 'noto-serif'
+  | 'inter'
+  | 'nunito'
+  | 'noto-sans';
+
+/** Tipografi teks bacaan Platform (isi Chapter, sinopsis, preview share, editor Studio). */
+export interface ReadingTypography {
+  fontFamily: ReadingFontFamily;
+  /** px */
+  fontSize: number;
+  lineHeight: number;
+  /** em */
+  paragraphSpacing: number;
+  /** em, 0 = tanpa indentasi */
+  firstLineIndent: number;
+}
+
 export interface Platform {
   id: string;
   nama: string;
@@ -127,6 +150,8 @@ export interface Platform {
   contactPhone: string | null;
   contactWhatsapp: string | null;
   contactEmail: string | null;
+  /** Tipografi teks bacaan (selalu lengkap dari API). */
+  readingTypography: ReadingTypography;
 }
 
 export interface PlatformsResponse {
@@ -247,6 +272,7 @@ export interface CreatePlatformPayload {
   contactPhone?: string | null;
   contactWhatsapp?: string | null;
   contactEmail?: string | null;
+  readingTypography?: ReadingTypography | null;
 }
 
 /** Book di section homepage mode manual (`HomepageSectionBookDto`). */
@@ -310,6 +336,7 @@ export interface UpdatePlatformPayload {
   contactPhone?: string | null;
   contactWhatsapp?: string | null;
   contactEmail?: string | null;
+  readingTypography?: ReadingTypography | null;
 }
 
 export type PlatformBuildJobStatus =

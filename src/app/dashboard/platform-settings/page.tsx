@@ -11,13 +11,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ImageUpload } from '@/components/image-upload';
 import { SeoTemplateField } from '@/components/seo-template-field';
+import { clampReadingTypography, DEFAULT_READING_TYPOGRAPHY, ReadingTypographySettings } from '@/components/reading-typography-settings';
 import { AudioUpload } from '@/components/audio-upload';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { PlatformBuildsSection } from '@/components/platform-builds-section';
 import { TermsAndConditionsEditor } from '@/components/terms-and-conditions-editor';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
-import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, RatingMode, StudioEditMode, UpdatePlatformPayload } from '@/lib/types';
+import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, RatingMode, ReadingTypography, StudioEditMode, UpdatePlatformPayload } from '@/lib/types';
 
 const DEFAULT_COLORS: PlatformColors = {
   bg: '#fbf6ee',
@@ -83,6 +84,7 @@ interface FormState {
   contactPhone: string;
   contactWhatsapp: string;
   contactEmail: string;
+  readingTypography: ReadingTypography;
 }
 
 const EMPTY_FORM: FormState = {
@@ -123,6 +125,7 @@ const EMPTY_FORM: FormState = {
   contactPhone: '',
   contactWhatsapp: '',
   contactEmail: '',
+  readingTypography: DEFAULT_READING_TYPOGRAPHY,
 };
 
 function platformToForm(platform: Platform): FormState {
@@ -164,6 +167,7 @@ function platformToForm(platform: Platform): FormState {
     contactPhone: platform.contactPhone ?? '',
     contactWhatsapp: platform.contactWhatsapp ?? '',
     contactEmail: platform.contactEmail ?? '',
+    readingTypography: { ...DEFAULT_READING_TYPOGRAPHY, ...(platform.readingTypography ?? {}) },
   };
 }
 
@@ -372,6 +376,7 @@ export default function PlatformSettingsPage() {
         contactPhone: form.contactPhone.trim() || null,
         contactWhatsapp: form.contactWhatsapp.trim() || null,
         contactEmail: form.contactEmail.trim() || null,
+        readingTypography: clampReadingTypography(form.readingTypography),
         // Cuma relevan saat edit (Platform belum punya id saat create) —
         // dikirim null kalau dikosongkan supaya bisa "dihapus" dari form ini.
         ...(!isCreating
@@ -962,6 +967,20 @@ export default function PlatformSettingsPage() {
               <TermsAndConditionsEditor
                 value={form.termsAndConditions}
                 onChange={(value) => updateField('termsAndConditions', value)}
+                disabled={submitting}
+              />
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <Label>Tipografi bacaan</Label>
+                <p className="text-xs text-muted-foreground">
+                  Font, ukuran, jarak baris, jarak paragraf, dan indentasi untuk teks yang dibaca di Platform ini.
+                </p>
+              </div>
+              <ReadingTypographySettings
+                value={form.readingTypography}
+                onChange={(value) => updateField('readingTypography', value)}
                 disabled={submitting}
               />
             </div>
