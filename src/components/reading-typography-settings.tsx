@@ -4,16 +4,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { ReadingFontFamily, ReadingTypography } from '@/lib/types';
 
-/** Font kurasi — key sama dengan API & reader app; `google` untuk memuat font pratinjau. */
-export const READING_FONTS: Array<{ key: ReadingFontFamily; label: string; google: string; fallback: string }> = [
-  { key: 'source-serif-4', label: 'Source Serif 4 (default)', google: 'Source+Serif+4:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
-  { key: 'merriweather', label: 'Merriweather', google: 'Merriweather:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
-  { key: 'lora', label: 'Lora', google: 'Lora:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
-  { key: 'literata', label: 'Literata', google: 'Literata:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
-  { key: 'noto-serif', label: 'Noto Serif', google: 'Noto+Serif:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
-  { key: 'inter', label: 'Inter (sans)', google: 'Inter:wght@400;700', fallback: 'sans-serif' },
-  { key: 'nunito', label: 'Nunito (sans)', google: 'Nunito:ital,wght@0,400;0,700;1,400', fallback: 'sans-serif' },
-  { key: 'noto-sans', label: 'Noto Sans (sans)', google: 'Noto+Sans:ital,wght@0,400;0,700;1,400', fallback: 'sans-serif' },
+/**
+ * Font kurasi — key sama dengan API & reader app. `family` = font yang benar-benar dimuat
+ * (mis. "Georgia" memakai Gelasio, setara metrik Georgia & tersedia di Android); `google`
+ * dipakai memuat font pratinjau.
+ */
+export const READING_FONTS: Array<{ key: ReadingFontFamily; label: string; family: string; google: string; fallback: 'serif' | 'sans-serif' }> = [
+  { key: 'source-serif-4', label: 'Source Serif 4 (default)', family: 'Source Serif 4', google: 'Source+Serif+4:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
+  { key: 'merriweather', label: 'Merriweather', family: 'Merriweather', google: 'Merriweather:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
+  { key: 'lora', label: 'Lora', family: 'Lora', google: 'Lora:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
+  { key: 'literata', label: 'Literata', family: 'Literata', google: 'Literata:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
+  { key: 'noto-serif', label: 'Noto Serif', family: 'Noto Serif', google: 'Noto+Serif:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
+  { key: 'georgia', label: 'Georgia', family: 'Gelasio', google: 'Gelasio:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
+  { key: 'pt-serif', label: 'PT Serif', family: 'PT Serif', google: 'PT+Serif:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
+  { key: 'crimson-pro', label: 'Crimson Pro', family: 'Crimson Pro', google: 'Crimson+Pro:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
+  { key: 'eb-garamond', label: 'EB Garamond', family: 'EB Garamond', google: 'EB+Garamond:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
+  { key: 'libre-baskerville', label: 'Libre Baskerville', family: 'Libre Baskerville', google: 'Libre+Baskerville:ital,wght@0,400;0,700;1,400', fallback: 'serif' },
+  { key: 'inter', label: 'Inter', family: 'Inter', google: 'Inter:wght@400;700', fallback: 'sans-serif' },
+  { key: 'nunito', label: 'Nunito', family: 'Nunito', google: 'Nunito:ital,wght@0,400;0,700;1,400', fallback: 'sans-serif' },
+  { key: 'noto-sans', label: 'Noto Sans', family: 'Noto Sans', google: 'Noto+Sans:ital,wght@0,400;0,700;1,400', fallback: 'sans-serif' },
+  { key: 'roboto', label: 'Roboto', family: 'Roboto', google: 'Roboto:ital,wght@0,400;0,700;1,400', fallback: 'sans-serif' },
+  { key: 'open-sans', label: 'Open Sans', family: 'Open Sans', google: 'Open+Sans:ital,wght@0,400;0,700;1,400', fallback: 'sans-serif' },
+  { key: 'plus-jakarta-sans', label: 'Plus Jakarta Sans', family: 'Plus Jakarta Sans', google: 'Plus+Jakarta+Sans:ital,wght@0,400;0,700;1,400', fallback: 'sans-serif' },
+  { key: 'atkinson-hyperlegible', label: 'Atkinson Hyperlegible', family: 'Atkinson Hyperlegible', google: 'Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400', fallback: 'sans-serif' },
 ];
 
 export const DEFAULT_READING_TYPOGRAPHY: ReadingTypography = {
@@ -84,7 +97,12 @@ export function ReadingTypographySettings({
             onChange={(e) => update('fontFamily', e.target.value as ReadingFontFamily)}
             className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
           >
-            {READING_FONTS.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+            <optgroup label="Serif — novel & bacaan panjang">
+              {READING_FONTS.filter((item) => item.fallback === 'serif').map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+            </optgroup>
+            <optgroup label="Sans-serif — non-fiksi & bacaan santai">
+              {READING_FONTS.filter((item) => item.fallback === 'sans-serif').map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+            </optgroup>
           </select>
         </div>
 
@@ -131,7 +149,7 @@ export function ReadingTypographySettings({
         <div
           className="rounded-md border bg-white p-5 text-neutral-800"
           style={{
-            fontFamily: `'${font.label.replace(/ \(.*\)$/, '')}', ${font.fallback}`,
+            fontFamily: `'${font.family}', ${font.fallback}`,
             fontSize: `${value.fontSize}px`,
             lineHeight: value.lineHeight,
           }}

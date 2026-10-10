@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ImageUpload } from '@/components/image-upload';
 import { SeoTemplateField } from '@/components/seo-template-field';
+import { PlatformColorSettings } from '@/components/platform-color-settings';
 import { clampReadingTypography, DEFAULT_READING_TYPOGRAPHY, ReadingTypographySettings } from '@/components/reading-typography-settings';
 import { AudioUpload } from '@/components/audio-upload';
 import { LoadingSpinner } from '@/components/loading-spinner';
@@ -31,19 +32,6 @@ const DEFAULT_COLORS: PlatformColors = {
   mustard: '#d79a2c',
   olive: '#6b7a4c',
 };
-
-/** Label manusiawi + urutan tampil untuk tiap key `PlatformColors`. */
-const COLOR_FIELD_LABELS: Array<{ key: keyof PlatformColors; label: string }> = [
-  { key: 'bg', label: 'Background' },
-  { key: 'surface', label: 'Surface' },
-  { key: 'foreground', label: 'Foreground (teks)' },
-  { key: 'muted', label: 'Muted (teks redup)' },
-  { key: 'border', label: 'Border' },
-  { key: 'terracotta', label: 'Terracotta (aksen utama)' },
-  { key: 'terracottaForeground', label: 'Terracotta Foreground' },
-  { key: 'mustard', label: 'Mustard (aksen)' },
-  { key: 'olive', label: 'Olive (aksen)' },
-];
 
 interface FormState {
   nama: string;
@@ -169,40 +157,6 @@ function platformToForm(platform: Platform): FormState {
     contactEmail: platform.contactEmail ?? '',
     readingTypography: { ...DEFAULT_READING_TYPOGRAPHY, ...(platform.readingTypography ?? {}) },
   };
-}
-
-/** Swatch native `<input type="color">` + input hex teks berdampingan, dua arah saling sinkron. */
-function ColorField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const isValidHex = /^#[0-9a-fA-F]{6}$/.test(value);
-
-  return (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      <div className="flex items-center gap-2">
-        <input
-          type="color"
-          value={isValidHex ? value : '#000000'}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-9 shrink-0 cursor-pointer rounded border p-0.5"
-          aria-label={label}
-        />
-        <Input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="font-mono text-xs"
-          placeholder="#000000"
-        />
-      </div>
-    </div>
-  );
 }
 
 /** Satu baris tabel DNS record (mis. TXT/A) — pola tampilan mirip panel "Domains" Vercel, dengan tombol salin per baris. Port persis bagdja-auction-admin. */
@@ -659,19 +613,13 @@ export default function PlatformSettingsPage() {
 
             <div className="space-y-3 border-t pt-4">
               <div>
-                <Label>Colors</Label>
-                <p className="text-xs text-muted-foreground">Skema warna reader Platform ini.</p>
+                <Label>Warna</Label>
+                <p className="text-xs text-muted-foreground">
+                  Skema warna reader Platform ini. Warna umum dipakai di mana-mana; warna per bagian (header, kartu buku,
+                  footer, tombol, status, area baca) opsional untuk menimpanya.
+                </p>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {COLOR_FIELD_LABELS.map(({ key, label }) => (
-                  <ColorField
-                    key={key}
-                    label={label}
-                    value={form.colors[key]}
-                    onChange={(value) => updateColorField(key, value)}
-                  />
-                ))}
-              </div>
+              <PlatformColorSettings colors={form.colors} onChange={updateColorField} />
             </div>
 
             <div className="flex items-start gap-2 border-t pt-4">
