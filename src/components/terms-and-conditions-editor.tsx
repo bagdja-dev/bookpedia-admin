@@ -31,6 +31,8 @@ interface TermsAndConditionsEditorProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  /** Dipakai juga untuk Kebijakan Privasi — label aksesibilitas toolbar menyesuaikan kontennya. */
+  toolbarLabel?: string;
 }
 
 function ToolbarButton({
@@ -67,7 +69,7 @@ function ToolbarDivider() {
   return <span aria-hidden="true" className="mx-1 h-6 w-px bg-border" />;
 }
 
-export function TermsAndConditionsEditor({ value, onChange, disabled = false }: TermsAndConditionsEditorProps) {
+export function TermsAndConditionsEditor({ value, onChange, disabled = false, toolbarLabel = 'Format konten Terms & Conditions' }: TermsAndConditionsEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [2, 3] } }),
@@ -114,7 +116,7 @@ export function TermsAndConditionsEditor({ value, onChange, disabled = false }: 
 
   return (
     <div className={cn('overflow-hidden rounded-md border bg-background', disabled && 'opacity-70')}>
-      <div className="flex flex-wrap items-center gap-0.5 border-b bg-muted/30 p-1" role="toolbar" aria-label="Format konten Terms & Conditions">
+      <div className="flex flex-wrap items-center gap-0.5 border-b bg-muted/30 p-1" role="toolbar" aria-label={toolbarLabel}>
         <ToolbarButton editor={editor} label="Tebal" active={editor?.isActive('bold')} onClick={() => editor?.chain().focus().toggleBold().run()}>
           <Bold />
         </ToolbarButton>
