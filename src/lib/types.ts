@@ -174,6 +174,7 @@ export interface Platform {
   seoPrefix: string | null;
   seoSuffix: string | null;
   termsAndConditions: string | null;
+  privacyPolicy: string | null;
   /** Halaman Kontak (/contact) — kosong = baris tidak ditampilkan. */
   contactPhone: string | null;
   contactWhatsapp: string | null;
@@ -297,6 +298,7 @@ export interface CreatePlatformPayload {
   seoPrefix?: string;
   seoSuffix?: string;
   termsAndConditions?: string;
+  privacyPolicy?: string;
   contactPhone?: string | null;
   contactWhatsapp?: string | null;
   contactEmail?: string | null;
@@ -361,6 +363,7 @@ export interface UpdatePlatformPayload {
   seoPrefix?: string | null;
   seoSuffix?: string | null;
   termsAndConditions?: string | null;
+  privacyPolicy?: string | null;
   contactPhone?: string | null;
   contactWhatsapp?: string | null;
   contactEmail?: string | null;
