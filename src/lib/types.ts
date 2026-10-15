@@ -162,6 +162,7 @@ export interface Platform {
   androidPackageName: string | null;
   /** Link listing app Android ini di Google Play Store. */
   playStoreUrl: string | null;
+  adsensePublisherId: string | null;
   /** TWA Digital Asset Links — SHA-256 sertifikat penanda tangan, format AA:BB:... */
   androidSha256CertFingerprints: string[];
   /** Fase 7 — nyala/mati fitur rating Book/Chapter. */
@@ -296,6 +297,7 @@ export interface CreatePlatformPayload {
   rendererKey?: string;
   homepageSections?: CatalogSectionConfig[];
   adSlots?: PlatformAdSlots;
+  adsensePublisherId?: string | null;
   maxFreeChapters?: number;
   showBookStatus?: boolean;
   maxTagsPerBook?: number;
@@ -366,6 +368,7 @@ export interface UpdatePlatformPayload {
   searchConsoleVerificationContent?: string | null;
   androidPackageName?: string | null;
   playStoreUrl?: string | null;
+  adsensePublisherId?: string | null;
   androidSha256CertFingerprints?: string[];
   enableRating?: boolean;
   ratingMode?: RatingMode;

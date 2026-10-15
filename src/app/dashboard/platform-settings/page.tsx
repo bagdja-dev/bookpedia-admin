@@ -65,6 +65,7 @@ interface FormState {
   searchConsoleVerificationContent: string;
   androidPackageName: string;
   playStoreUrl: string;
+  adsensePublisherId: string;
   /** Satu fingerprint per baris. */
   androidSha256CertFingerprints: string;
   enableRating: boolean;
@@ -111,6 +112,7 @@ const EMPTY_FORM: FormState = {
   searchConsoleVerificationContent: '',
   androidPackageName: '',
   playStoreUrl: '',
+  adsensePublisherId: '',
   androidSha256CertFingerprints: '',
   enableRating: true,
   ratingMode: 'book',
@@ -157,6 +159,7 @@ function platformToForm(platform: Platform): FormState {
     searchConsoleVerificationContent: platform.searchConsoleVerificationContent ?? '',
     androidPackageName: platform.androidPackageName ?? '',
     playStoreUrl: platform.playStoreUrl ?? '',
+    adsensePublisherId: platform.adsensePublisherId ?? '',
     androidSha256CertFingerprints: (platform.androidSha256CertFingerprints ?? []).join('\n'),
     enableRating: platform.enableRating ?? true,
     ratingMode: platform.ratingMode ?? 'book',
@@ -374,6 +377,7 @@ export default function PlatformSettingsPage() {
         contactEmail: form.contactEmail.trim() || null,
         readingTypography: clampReadingTypography(form.readingTypography),
         adSlots: form.adSlots,
+        adsensePublisherId: form.adsensePublisherId.trim() || null,
         // Cuma relevan saat edit (Platform belum punya id saat create) —
         // dikirim null kalau dikosongkan supaya bisa "dihapus" dari form ini.
         ...(!isCreating
@@ -689,6 +693,21 @@ export default function PlatformSettingsPage() {
                 </p>
               </div>
               <PlatformColorSettings colors={form.colors} onChange={updateColorField} />
+            </div>
+
+            <div className="space-y-2 border-t pt-4">
+              <Label htmlFor="adsensePublisherId">Google AdSense Publisher ID</Label>
+              <Input
+                id="adsensePublisherId"
+                value={form.adsensePublisherId}
+                onChange={(event) => updateField('adsensePublisherId', event.target.value)}
+                placeholder="ca-pub-2126630801090914"
+                maxLength={32}
+                className="max-w-md font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Dirender sebagai meta tag verifikasi AdSense di &lt;head&gt; untuk domain Platform ini. Isi ID publisher, bukan seluruh tag HTML.
+              </p>
             </div>
 
             <div className="flex items-start gap-2 border-t pt-4">
