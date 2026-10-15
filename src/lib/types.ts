@@ -117,6 +117,18 @@ export interface ReadingTypography {
   firstLineIndent: number;
 }
 
+export interface PlatformAdSlotSettings {
+  enabled: boolean;
+  script: string;
+}
+
+export interface PlatformAdSlots {
+  borderColor: string;
+  homepage: PlatformAdSlotSettings;
+  bookDetail: PlatformAdSlotSettings;
+  chapterReader: PlatformAdSlotSettings;
+}
+
 export interface Platform {
   id: string;
   nama: string;
@@ -131,6 +143,7 @@ export interface Platform {
   studioEditMode: StudioEditMode;
   rendererKey: string;
   homepageSections: CatalogSectionConfig[];
+  adSlots: PlatformAdSlots;
   domain: string | null;
   domainVerifiedAt: string | null;
   isActive: boolean;
@@ -282,6 +295,7 @@ export interface CreatePlatformPayload {
   studioEditMode?: StudioEditMode;
   rendererKey?: string;
   homepageSections?: CatalogSectionConfig[];
+  adSlots?: PlatformAdSlots;
   maxFreeChapters?: number;
   showBookStatus?: boolean;
   maxTagsPerBook?: number;
@@ -343,6 +357,7 @@ export interface UpdatePlatformPayload {
   studioEditMode?: StudioEditMode;
   rendererKey?: string;
   homepageSections?: CatalogSectionConfig[];
+  adSlots?: PlatformAdSlots;
   isActive?: boolean;
   maxFreeChapters?: number;
   showBookStatus?: boolean;

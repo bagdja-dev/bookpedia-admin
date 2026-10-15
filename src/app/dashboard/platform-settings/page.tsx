@@ -19,7 +19,7 @@ import { PlatformBuildsSection } from '@/components/platform-builds-section';
 import { TermsAndConditionsEditor } from '@/components/terms-and-conditions-editor';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
-import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformColors, RatingMode, ReadingTypography, StudioEditMode, UpdatePlatformPayload } from '@/lib/types';
+import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformAdSlots, PlatformColors, RatingMode, ReadingTypography, StudioEditMode, UpdatePlatformPayload } from '@/lib/types';
 
 const DEFAULT_COLORS: PlatformColors = {
   bg: '#fbf6ee',
@@ -32,6 +32,19 @@ const DEFAULT_COLORS: PlatformColors = {
   mustard: '#d79a2c',
   olive: '#6b7a4c',
 };
+
+const DEFAULT_AD_SLOTS: PlatformAdSlots = {
+  borderColor: '#f97316',
+  homepage: { enabled: false, script: '' },
+  bookDetail: { enabled: false, script: '' },
+  chapterReader: { enabled: false, script: '' },
+};
+
+const AD_SLOT_FIELDS = [
+  { key: 'homepage', label: 'Beranda: setelah section katalog pertama' },
+  { key: 'bookDetail', label: 'Detail buku: sebelum daftar chapter' },
+  { key: 'chapterReader', label: 'Halaman baca: sebelum navigasi chapter' },
+] as const;
 
 interface FormState {
   nama: string;
@@ -76,6 +89,7 @@ interface FormState {
   contactWhatsapp: string;
   contactEmail: string;
   readingTypography: ReadingTypography;
+  adSlots: PlatformAdSlots;
 }
 
 const EMPTY_FORM: FormState = {
@@ -120,6 +134,7 @@ const EMPTY_FORM: FormState = {
   contactWhatsapp: '',
   contactEmail: '',
   readingTypography: DEFAULT_READING_TYPOGRAPHY,
+  adSlots: DEFAULT_AD_SLOTS,
 };
 
 function platformToForm(platform: Platform): FormState {
@@ -165,6 +180,12 @@ function platformToForm(platform: Platform): FormState {
     contactWhatsapp: platform.contactWhatsapp ?? '',
     contactEmail: platform.contactEmail ?? '',
     readingTypography: { ...DEFAULT_READING_TYPOGRAPHY, ...(platform.readingTypography ?? {}) },
+    adSlots: {
+      borderColor: platform.adSlots?.borderColor ?? DEFAULT_AD_SLOTS.borderColor,
+      homepage: { ...DEFAULT_AD_SLOTS.homepage, ...(platform.adSlots?.homepage ?? {}) },
+      bookDetail: { ...DEFAULT_AD_SLOTS.bookDetail, ...(platform.adSlots?.bookDetail ?? {}) },
+      chapterReader: { ...DEFAULT_AD_SLOTS.chapterReader, ...(platform.adSlots?.chapterReader ?? {}) },
+    },
   };
 }
 
@@ -300,6 +321,16 @@ export default function PlatformSettingsPage() {
     setForm((prev) => ({ ...prev, colors: { ...prev.colors, [key]: value } }));
   }
 
+  function updateAdSlot(
+    key: 'homepage' | 'bookDetail' | 'chapterReader',
+    value: Partial<PlatformAdSlots['homepage']>,
+  ) {
+    setForm((prev) => ({
+      ...prev,
+      adSlots: { ...prev.adSlots, [key]: { ...prev.adSlots[key], ...value } },
+    }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -342,6 +373,7 @@ export default function PlatformSettingsPage() {
         contactWhatsapp: form.contactWhatsapp.trim() || null,
         contactEmail: form.contactEmail.trim() || null,
         readingTypography: clampReadingTypography(form.readingTypography),
+        adSlots: form.adSlots,
         // Cuma relevan saat edit (Platform belum punya id saat create) —
         // dikirim null kalau dikosongkan supaya bisa "dihapus" dari form ini.
         ...(!isCreating
@@ -968,6 +1000,59 @@ export default function PlatformSettingsPage() {
                 onChange={(value) => updateField('readingTypography', value)}
                 disabled={submitting}
               />
+            </div>
+
+            <div className="space-y-4 border-t pt-4">
+              <div>
+                <Label>Iklan</Label>
+                <p className="text-xs text-muted-foreground">
+                  Aktifkan posisi iklan dan tempel snippet dari penyedia iklan. Script akan dieksekusi pada browser pengunjung; gunakan hanya kode dari sumber yang Anda percaya.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="ad-border-color"
+                  type="color"
+                  value={form.adSlots.borderColor}
+                  onChange={(event) => setForm((prev) => ({
+                    ...prev,
+                    adSlots: { ...prev.adSlots, borderColor: event.target.value },
+                  }))}
+                  disabled={submitting}
+                  className="h-10 w-14 cursor-pointer p-1"
+                  aria-label="Warna border iklan"
+                />
+                <Label htmlFor="ad-border-color">Warna border slot iklan</Label>
+                <span className="font-mono text-xs text-muted-foreground">{form.adSlots.borderColor}</span>
+              </div>
+              {AD_SLOT_FIELDS.map(({ key, label }) => (
+                <div key={key} className="space-y-3 rounded-md border p-4">
+                  <label htmlFor={`ad-${key}-enabled`} className="flex items-start gap-2 text-sm font-medium">
+                    <input
+                      id={`ad-${key}-enabled`}
+                      type="checkbox"
+                      checked={form.adSlots[key].enabled}
+                      onChange={(event) => updateAdSlot(key, { enabled: event.target.checked })}
+                      disabled={submitting}
+                      className="mt-1"
+                    />
+                    <span>{label}</span>
+                  </label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`ad-${key}-script`}>Script iklan</Label>
+                    <Textarea
+                      id={`ad-${key}-script`}
+                      value={form.adSlots[key].script}
+                      onChange={(event) => updateAdSlot(key, { script: event.target.value })}
+                      placeholder="Tempel snippet HTML atau script iklan di sini"
+                      className="min-h-32 font-mono text-xs"
+                      maxLength={50000}
+                      disabled={submitting}
+                    />
+                    <p className="text-xs text-muted-foreground">Maksimal 50.000 karakter. Slot yang tidak aktif tidak dimuat di halaman publik.</p>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="space-y-3 border-t pt-4">
