@@ -36,6 +36,8 @@ const DEFAULT_COLORS: PlatformColors = {
 interface FormState {
   nama: string;
   slug: string;
+  tagline: string;
+  motto: string;
   logoUrl: string;
   faviconUrl: string;
   notificationSoundUrl: string;
@@ -49,6 +51,7 @@ interface FormState {
   searchConsoleVerificationFilename: string;
   searchConsoleVerificationContent: string;
   androidPackageName: string;
+  playStoreUrl: string;
   /** Satu fingerprint per baris. */
   androidSha256CertFingerprints: string;
   enableRating: boolean;
@@ -78,6 +81,8 @@ interface FormState {
 const EMPTY_FORM: FormState = {
   nama: '',
   slug: '',
+  tagline: '',
+  motto: '',
   logoUrl: '',
   faviconUrl: '',
   notificationSoundUrl: '',
@@ -91,6 +96,7 @@ const EMPTY_FORM: FormState = {
   searchConsoleVerificationFilename: '',
   searchConsoleVerificationContent: '',
   androidPackageName: '',
+  playStoreUrl: '',
   androidSha256CertFingerprints: '',
   enableRating: true,
   ratingMode: 'book',
@@ -120,6 +126,8 @@ function platformToForm(platform: Platform): FormState {
   return {
     nama: platform.nama ?? '',
     slug: platform.slug ?? '',
+    tagline: platform.tagline ?? '',
+    motto: platform.motto ?? '',
     logoUrl: platform.logoUrl ?? '',
     faviconUrl: platform.faviconUrl ?? '',
     notificationSoundUrl: platform.notificationSoundUrl ?? '',
@@ -133,6 +141,7 @@ function platformToForm(platform: Platform): FormState {
     searchConsoleVerificationFilename: platform.searchConsoleVerificationFilename ?? '',
     searchConsoleVerificationContent: platform.searchConsoleVerificationContent ?? '',
     androidPackageName: platform.androidPackageName ?? '',
+    playStoreUrl: platform.playStoreUrl ?? '',
     androidSha256CertFingerprints: (platform.androidSha256CertFingerprints ?? []).join('\n'),
     enableRating: platform.enableRating ?? true,
     ratingMode: platform.ratingMode ?? 'book',
@@ -299,6 +308,8 @@ export default function PlatformSettingsPage() {
       const payload: CreatePlatformPayload & Partial<UpdatePlatformPayload> = {
         nama: form.nama.trim(),
         slug: form.slug.trim(),
+        tagline: form.tagline.trim() || null,
+        motto: form.motto.trim() || null,
         logoUrl: form.logoUrl.trim() || undefined,
         faviconUrl: form.faviconUrl.trim() || undefined,
         notificationSoundUrl: form.notificationSoundUrl.trim() || undefined,
@@ -338,6 +349,7 @@ export default function PlatformSettingsPage() {
               searchConsoleVerificationFilename: form.searchConsoleVerificationFilename.trim() || null,
               searchConsoleVerificationContent: form.searchConsoleVerificationContent.trim() || null,
               androidPackageName: form.androidPackageName.trim() || null,
+              playStoreUrl: form.playStoreUrl.trim() || null,
               androidSha256CertFingerprints: form.androidSha256CertFingerprints
                 .split(/[\n,]+/)
                 .map((value) => value.trim())
@@ -583,6 +595,31 @@ export default function PlatformSettingsPage() {
                   Satu-satunya template yang ada saat ini adalah &ldquo;reader&rdquo;. Renderer baru
                   (mis. musik) ditambahkan nanti begitu benar-benar dibutuhkan.
                 </p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 border-t pt-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="tagline">Tagline</Label>
+                <Input
+                  id="tagline"
+                  value={form.tagline}
+                  onChange={(e) => updateField('tagline', e.target.value)}
+                  placeholder="Baca dan tulis cerita favoritmu"
+                  maxLength={255}
+                />
+                <p className="text-xs text-muted-foreground">Tampil di bawah nama atau logo pada renderer publik.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="motto">Moto</Label>
+                <Input
+                  id="motto"
+                  value={form.motto}
+                  onChange={(e) => updateField('motto', e.target.value)}
+                  placeholder="Setiap cerita punya tempat untuk pulang"
+                  maxLength={255}
+                />
+                <p className="text-xs text-muted-foreground">Tampil bersama tagline pada renderer publik.</p>
               </div>
             </div>
 
@@ -1021,6 +1058,19 @@ export default function PlatformSettingsPage() {
                   </p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="playStoreUrl">URL Google Play Store</Label>
+                    <Input
+                      id="playStoreUrl"
+                      type="url"
+                      value={form.playStoreUrl}
+                      onChange={(e) => updateField('playStoreUrl', e.target.value)}
+                      placeholder="https://play.google.com/store/apps/details?id=com.bagdja.novello"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Jika diisi, link download akan tampil di footer reader app.
+                    </p>
+                  </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="androidPackageName">Package Name</Label>
                     <Input

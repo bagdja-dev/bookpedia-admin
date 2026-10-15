@@ -121,6 +121,8 @@ export interface Platform {
   id: string;
   nama: string;
   slug: string;
+  tagline: string | null;
+  motto: string | null;
   logoUrl: string | null;
   faviconUrl: string | null;
   notificationSoundUrl: string | null;
@@ -145,6 +147,8 @@ export interface Platform {
   searchConsoleVerificationContent: string | null;
   /** TWA Digital Asset Links — package name app Android (dibalas di /.well-known/assetlinks.json). */
   androidPackageName: string | null;
+  /** Link listing app Android ini di Google Play Store. */
+  playStoreUrl: string | null;
   /** TWA Digital Asset Links — SHA-256 sertifikat penanda tangan, format AA:BB:... */
   androidSha256CertFingerprints: string[];
   /** Fase 7 — nyala/mati fitur rating Book/Chapter. */
@@ -268,6 +272,8 @@ export interface PlatformUserReadingResponse {
 export interface CreatePlatformPayload {
   nama: string;
   slug: string;
+  tagline?: string | null;
+  motto?: string | null;
   logoUrl?: string;
   faviconUrl?: string;
   notificationSoundUrl?: string;
@@ -327,6 +333,8 @@ export interface CatalogBookSearchResult {
 export interface UpdatePlatformPayload {
   nama?: string;
   slug?: string;
+  tagline?: string | null;
+  motto?: string | null;
   logoUrl?: string;
   faviconUrl?: string;
   notificationSoundUrl?: string;
@@ -342,6 +350,7 @@ export interface UpdatePlatformPayload {
   searchConsoleVerificationFilename?: string | null;
   searchConsoleVerificationContent?: string | null;
   androidPackageName?: string | null;
+  playStoreUrl?: string | null;
   androidSha256CertFingerprints?: string[];
   enableRating?: boolean;
   ratingMode?: RatingMode;
