@@ -401,16 +401,17 @@ export default function PlatformSettingsPage() {
         });
         toast.success(`Platform "${created.nama}" berhasil dibuat.`);
 
-        // Jadikan Platform baru ini aktif SEBELUM refresh() — refresh()
+        // Jadikan Platform baru ini aktif SEBELUM router.replace — refresh()
         // baca localStorage lalu cocokkan ke daftar Platform hasil fetch
-        // terbaru (yang sudah termasuk Platform ini). Keluar dari
-        // `?mode=create` juga wajib — kalau tidak, klik "Tambah Platform"
-        // berikutnya tidak memicu navigasi sama sekali (URL sudah identik),
-        // dan form tertinggal berisi data yang baru saja disubmit alih-alih
-        // kosong (bug yang dilaporkan).
+        // terbaru (yang sudah termasuk Platform ini). Harus di-await dulu
+        // supaya `activePlatform` sudah ter-update ke Platform baru sebelum
+        // halaman re-render setelah navigasi (kalau refresh() ditaruh di
+        // bawah router.replace, form akan tampil data Platform lama
+        // sesaat sebelum refresh selesai).
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem(ACTIVE_PLATFORM_STORAGE_KEY, created.id);
         }
+        await refresh();
         router.replace('/dashboard/platform-settings');
       } else if (selectedPlatform) {
         const updated = await apiClient<Platform>(`/platforms/${selectedPlatform.id}`, {
