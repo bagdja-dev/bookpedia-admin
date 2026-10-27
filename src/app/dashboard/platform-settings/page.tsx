@@ -86,6 +86,7 @@ interface FormState {
   seoPrefix: string;
   seoSuffix: string;
   termsAndConditions: string;
+  privacyPolicy: string;
   contactPhone: string;
   contactWhatsapp: string;
   contactEmail: string;
@@ -132,6 +133,7 @@ const EMPTY_FORM: FormState = {
   seoPrefix: '',
   seoSuffix: '',
   termsAndConditions: '',
+  privacyPolicy: '',
   contactPhone: '',
   contactWhatsapp: '',
   contactEmail: '',
@@ -179,6 +181,7 @@ function platformToForm(platform: Platform): FormState {
     seoPrefix: platform.seoPrefix ?? '',
     seoSuffix: platform.seoSuffix ?? '',
     termsAndConditions: platform.termsAndConditions ?? '',
+    privacyPolicy: platform.privacyPolicy ?? '',
     contactPhone: platform.contactPhone ?? '',
     contactWhatsapp: platform.contactWhatsapp ?? '',
     contactEmail: platform.contactEmail ?? '',
@@ -273,6 +276,12 @@ export default function PlatformSettingsPage() {
   );
 
   const savedDomain = selectedPlatform?.domain ?? '';
+
+  // URL yang didaftarkan di Google Play Console — domain custom hanya dipakai
+  // kalau sudah terverifikasi (sebelum itu belum di-resolve reader app).
+  const privacyPolicyUrl = selectedPlatform
+    ? `https://${selectedPlatform.domain && selectedPlatform.domainVerifiedAt ? selectedPlatform.domain : `${selectedPlatform.slug}.bookpedia.bagdja.com`}/privacy-policy`
+    : null;
 
   // Selalu ikuti `activePlatform` (di-set Topbar switcher) — BUKAN cuma
   // sekali saat `selectedId` masih null (bug: ganti Platform lewat dropdown
@@ -372,6 +381,7 @@ export default function PlatformSettingsPage() {
         seoPrefix: form.seoPrefix.trim() || undefined,
         seoSuffix: form.seoSuffix.trim() || undefined,
         termsAndConditions: form.termsAndConditions.trim(),
+        privacyPolicy: form.privacyPolicy.trim(),
         contactPhone: form.contactPhone.trim() || null,
         contactWhatsapp: form.contactWhatsapp.trim() || null,
         contactEmail: form.contactEmail.trim() || null,
@@ -1005,6 +1015,29 @@ export default function PlatformSettingsPage() {
                 value={form.termsAndConditions}
                 onChange={(value) => updateField('termsAndConditions', value)}
                 disabled={submitting}
+              />
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <Label htmlFor="privacyPolicy">Kebijakan Privasi</Label>
+                <p className="text-xs text-muted-foreground">
+                  Tampil di halaman publik /privacy-policy. Wajib untuk Google Play Store — daftarkan URL di bawah pada Play Console (App content &rarr; Privacy policy). HTML didukung seperti Terms &amp; Conditions.
+                </p>
+                {privacyPolicyUrl && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <code className="min-w-0 truncate rounded bg-muted px-2 py-1 text-xs">{privacyPolicyUrl}</code>
+                    <Button type="button" variant="outline" size="icon-sm" title="Salin URL" aria-label="Salin URL Kebijakan Privasi" onClick={() => handleCopy('privacyPolicyUrl', privacyPolicyUrl)}>
+                      {copiedField === 'privacyPolicyUrl' ? <Check /> : <Copy />}
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <TermsAndConditionsEditor
+                value={form.privacyPolicy}
+                onChange={(value) => updateField('privacyPolicy', value)}
+                disabled={submitting}
+                toolbarLabel="Format konten Kebijakan Privasi"
               />
             </div>
 
