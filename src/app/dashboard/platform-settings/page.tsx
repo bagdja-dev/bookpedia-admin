@@ -649,7 +649,7 @@ export default function PlatformSettingsPage() {
                     previewHeight={108}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Tampil di login.bagdja.com saat pembaca masuk dari Platform ini, bersama logo di atas. Landscape
+                    Tampil di login.bagdja.com saat pembaca masuk dari Platform ini, bersama Favicon di atas sebagai ikon. Landscape
                     minimal 1920×1080 disarankan. Kosongkan untuk memakai background default Bookpedia.
                   </p>
                 </div>
