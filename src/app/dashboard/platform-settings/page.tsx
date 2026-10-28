@@ -52,6 +52,7 @@ interface FormState {
   tagline: string;
   motto: string;
   logoUrl: string;
+  loginBackgroundUrl: string;
   faviconUrl: string;
   notificationSoundUrl: string;
   colors: PlatformColors;
@@ -100,6 +101,7 @@ const EMPTY_FORM: FormState = {
   tagline: '',
   motto: '',
   logoUrl: '',
+  loginBackgroundUrl: '',
   faviconUrl: '',
   notificationSoundUrl: '',
   colors: DEFAULT_COLORS,
@@ -148,6 +150,7 @@ function platformToForm(platform: Platform): FormState {
     tagline: platform.tagline ?? '',
     motto: platform.motto ?? '',
     logoUrl: platform.logoUrl ?? '',
+    loginBackgroundUrl: platform.loginBackgroundUrl ?? '',
     faviconUrl: platform.faviconUrl ?? '',
     notificationSoundUrl: platform.notificationSoundUrl ?? '',
     colors: { ...DEFAULT_COLORS, ...platform.colors },
@@ -251,6 +254,7 @@ export default function PlatformSettingsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [faviconUploading, setFaviconUploading] = useState(false);
+  const [loginBackgroundUploading, setLoginBackgroundUploading] = useState(false);
   const [notificationSoundUploading, setNotificationSoundUploading] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
 
@@ -396,6 +400,7 @@ export default function PlatformSettingsPage() {
               searchConsoleVerificationContent: form.searchConsoleVerificationContent.trim() || null,
               androidPackageName: form.androidPackageName.trim() || null,
               playStoreUrl: form.playStoreUrl.trim() || null,
+              loginBackgroundUrl: form.loginBackgroundUrl.trim() || null,
               androidSha256CertFingerprints: form.androidSha256CertFingerprints
                 .split(/[\n,]+/)
                 .map((value) => value.trim())
@@ -630,6 +635,25 @@ export default function PlatformSettingsPage() {
                 disabled={submitting}
                 onUploadingChange={setNotificationSoundUploading}
               />
+              {!isCreating && (
+                <div className="space-y-1.5">
+                  <ImageUpload
+                    id="loginBackgroundUrl"
+                    label="Background Halaman Login"
+                    folder="platforms"
+                    value={form.loginBackgroundUrl}
+                    onChange={(url) => updateField('loginBackgroundUrl', url)}
+                    disabled={submitting}
+                    onUploadingChange={setLoginBackgroundUploading}
+                    previewWidth={192}
+                    previewHeight={108}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Tampil di login.bagdja.com saat pembaca masuk dari Platform ini, bersama logo di atas. Landscape
+                    minimal 1920×1080 disarankan. Kosongkan untuk memakai background default Bookpedia.
+                  </p>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="rendererKey">Renderer Key</Label>
                 <Input
@@ -717,7 +741,7 @@ export default function PlatformSettingsPage() {
                 className="max-w-md font-mono"
               />
               <p className="text-xs text-muted-foreground">
-                Dirender sebagai meta tag verifikasi AdSense di &lt;head&gt; untuk domain Platform ini. Isi ID publisher, bukan seluruh tag HTML.
+                Dirender sebagai meta tag verifikasi AdSense di &lt;head&gt; dan otomatis membuat file <code>/ads.txt</code> untuk domain Platform ini. Isi ID publisher (format <code>ca-pub-…</code>), bukan seluruh tag HTML.
               </p>
             </div>
 
@@ -1235,10 +1259,10 @@ export default function PlatformSettingsPage() {
             )}
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="submit" disabled={submitting || logoUploading || faviconUploading || notificationSoundUploading}>
+              <Button type="submit" disabled={submitting || logoUploading || faviconUploading || notificationSoundUploading || loginBackgroundUploading}>
                 {submitting
                   ? 'Menyimpan…'
-                  : logoUploading || faviconUploading || notificationSoundUploading
+                  : logoUploading || faviconUploading || notificationSoundUploading || loginBackgroundUploading
                     ? 'Menunggu upload…'
                     : isCreating
                       ? 'Buat Platform'

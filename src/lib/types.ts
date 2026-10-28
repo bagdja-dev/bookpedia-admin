@@ -163,6 +163,8 @@ export interface Platform {
   /** Link listing app Android ini di Google Play Store. */
   playStoreUrl: string | null;
   adsensePublisherId: string | null;
+  /** Background halaman login.bagdja.com saat login dari Platform ini. */
+  loginBackgroundUrl: string | null;
   /** TWA Digital Asset Links — SHA-256 sertifikat penanda tangan, format AA:BB:... */
   androidSha256CertFingerprints: string[];
   /** Fase 7 — nyala/mati fitur rating Book/Chapter. */
@@ -371,6 +373,7 @@ export interface UpdatePlatformPayload {
   androidPackageName?: string | null;
   playStoreUrl?: string | null;
   adsensePublisherId?: string | null;
+  loginBackgroundUrl?: string | null;
   androidSha256CertFingerprints?: string[];
   enableRating?: boolean;
   ratingMode?: RatingMode;
