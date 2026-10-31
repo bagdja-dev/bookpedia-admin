@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Check, Copy, RefreshCw, X, Pencil, Trash2 } from 'lucide-react';
+import { Check, Copy, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +19,7 @@ import { PlatformBuildsSection } from '@/components/platform-builds-section';
 import { TermsAndConditionsEditor } from '@/components/terms-and-conditions-editor';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
-import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformAdSlots, PlatformColors, RatingMode, ReadingTypography, StudioEditMode, UpdatePlatformPayload, DisclaimerTemplate, CreateDisclaimerTemplatePayload, UpdateDisclaimerTemplatePayload, DeletedResponse } from '@/lib/types';
+import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformAdSlots, PlatformColors, RatingMode, ReadingTypography, StudioEditMode, UpdatePlatformPayload } from '@/lib/types';
 
 const DEFAULT_COLORS: PlatformColors = {
   bg: '#fbf6ee',
@@ -266,16 +266,6 @@ export default function PlatformSettingsPage() {
   const [domainError, setDomainError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  // Disclaimer templates state
-  const [disclaimerTemplates, setDisclaimerTemplates] = useState<DisclaimerTemplate[]>([]);
-  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
-  const [templateForm, setTemplateForm] = useState<{ nama: string; content: string; isActive: boolean }>({
-    nama: '',
-    content: '',
-    isActive: true,
-  });
-  const [templateSubmitting, setTemplateSubmitting] = useState(false);
-
   // Domain custom belum ada di form Platform (kolom `domain` di-set lewat
   // endpoint verify/check, bukan field yang diedit langsung di sini — beda
   // dari Market yang punya field `domain` di form utama). Verifikasi
@@ -332,21 +322,6 @@ export default function PlatformSettingsPage() {
     setDomainError(null);
     setDomainInput(selectedPlatform?.domain ?? '');
   }, [selectedId, selectedPlatform?.domain]);
-
-  // Fetch template disclaimer saat Platform aktif berubah
-  useEffect(() => {
-    if (!selectedPlatform) {
-      setDisclaimerTemplates([]);
-      return;
-    }
-    let cancelled = false;
-    apiClient<DisclaimerTemplate[]>(`/platforms/${selectedPlatform.id}/disclaimer-templates`).then((data) => {
-      if (!cancelled) setDisclaimerTemplates(data ?? []);
-    }).catch(() => {
-      // Gagal diam-diam — template disclaimer bukan kritikal
-    });
-    return () => { cancelled = true; };
-  }, [selectedPlatform?.id]);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => {
@@ -547,81 +522,6 @@ export default function PlatformSettingsPage() {
     }
   }
 
-  async function fetchDisclaimerTemplates() {
-    if (!selectedPlatform) return;
-    const data = await apiClient<DisclaimerTemplate[]>(`/platforms/${selectedPlatform.id}/disclaimer-templates`);
-    setDisclaimerTemplates(data ?? []);
-  }
-
-  async function handleCreateDisclaimerTemplate() {
-    if (!selectedPlatform) return;
-    setTemplateSubmitting(true);
-    try {
-      const payload: CreateDisclaimerTemplatePayload = {
-        nama: templateForm.nama.trim(),
-        content: templateForm.content.trim(),
-        isActive: templateForm.isActive,
-      };
-      await apiClient<DisclaimerTemplate>(`/platforms/${selectedPlatform.id}/disclaimer-templates`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      setTemplateForm({ nama: '', content: '', isActive: true });
-      setEditingTemplateId(null);
-      await fetchDisclaimerTemplates();
-      toast.success('Template disclaimer berhasil dibuat.');
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Gagal membuat template disclaimer.');
-    } finally {
-      setTemplateSubmitting(false);
-    }
-  }
-
-  async function handleUpdateDisclaimerTemplate() {
-    if (!selectedPlatform || !editingTemplateId) return;
-    setTemplateSubmitting(true);
-    try {
-      const payload: UpdateDisclaimerTemplatePayload = {
-        nama: templateForm.nama.trim(),
-        content: templateForm.content.trim(),
-        isActive: templateForm.isActive,
-      };
-      await apiClient<DisclaimerTemplate>(`/platforms/${selectedPlatform.id}/disclaimer-templates/${editingTemplateId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
-      setTemplateForm({ nama: '', content: '', isActive: true });
-      setEditingTemplateId(null);
-      await fetchDisclaimerTemplates();
-      toast.success('Template disclaimer berhasil diperbarui.');
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Gagal memperbarui template disclaimer.');
-    } finally {
-      setTemplateSubmitting(false);
-    }
-  }
-
-  async function handleDeleteDisclaimerTemplate(id: string) {
-    if (!selectedPlatform) return;
-    if (!window.confirm('Hapus template disclaimer ini? Book yang memilih template ini akan tidak menampilkan disclaimer.')) return;
-    try {
-      await apiClient<DeletedResponse>(`/platforms/${selectedPlatform.id}/disclaimer-templates/${id}`, { method: 'DELETE' });
-      await fetchDisclaimerTemplates();
-      toast.success('Template disclaimer berhasil dihapus.');
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Gagal menghapus template disclaimer.');
-    }
-  }
-
-  function startEditTemplate(template: DisclaimerTemplate) {
-    setEditingTemplateId(template.id);
-    setTemplateForm({ nama: template.nama, content: template.content, isActive: template.isActive });
-  }
-
-  function cancelEditTemplate() {
-    setEditingTemplateId(null);
-    setTemplateForm({ nama: '', content: '', isActive: true });
-  }
   // Auto-tampilkan record DNS begitu domain tersimpan & belum terverifikasi
   // — pola sama Vercel (langsung tampil record begitu domain ditambahkan,
   // bukan nunggu user klik tombol "Verify" dulu). Idempotent di sisi backend
@@ -1163,149 +1063,6 @@ export default function PlatformSettingsPage() {
                 disabled={submitting}
                 toolbarLabel="Format konten Kebijakan Privasi"
               />
-            </div>
-
-            <div className="space-y-3 border-t pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Template Disclaimer</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Template disclaimer yang bisa dipilih penulis saat membuat/mengedit Book. Tampil di halaman
-                    detail Book (di bawah sinopsis, di atas tombol aksi) sebagai "sesion disclaimer".
-                  </p>
-                </div>
-                {!editingTemplateId && (
-                  <Button type="button" variant="outline" size="sm" onClick={() => {
-                    setEditingTemplateId('new');
-                    setTemplateForm({ nama: '', content: '', isActive: true });
-                  }} disabled={submitting || templateSubmitting}>
-                    + Tambah Template
-                  </Button>
-                )}
-              </div>
-
-              {editingTemplateId === 'new' || editingTemplateId !== null ? (
-                <div className="space-y-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="dt-nama">Nama Template</Label>
-                    <Input
-                      id="dt-nama"
-                      value={templateForm.nama}
-                      onChange={(e) => setTemplateForm((prev) => ({ ...prev, nama: e.target.value }))}
-                      placeholder="mis. Disclaimer Cerita Dewasa"
-                      disabled={submitting || templateSubmitting}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="dt-content">Konten Disclaimer</Label>
-                    <Textarea
-                      id="dt-content"
-                      value={templateForm.content}
-                      onChange={(e) => setTemplateForm((prev) => ({ ...prev, content: e.target.value }))}
-                      placeholder="Konten disclaimer yang akan ditampilkan di halaman detail Book. HTML didukung."
-                      rows={4}
-                      disabled={submitting || templateSubmitting}
-                      required
-                    />
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <input
-                      type="checkbox"
-                      id="dt-is-active"
-                      checked={templateForm.isActive}
-                      onChange={(e) => setTemplateForm((prev) => ({ ...prev, isActive: e.target.checked }))}
-                      disabled={submitting || templateSubmitting}
-                      className="mt-1"
-                    />
-                    <div>
-                      <Label htmlFor="dt-is-active">Template aktif (bisa dipilih penulis)</Label>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button type="button" variant="outline" size="sm" onClick={cancelEditTemplate} disabled={submitting || templateSubmitting}>
-                      Batal
-                    </Button>
-                    {editingTemplateId === 'new' ? (
-                      <Button type="button" onClick={handleCreateDisclaimerTemplate} disabled={submitting || templateSubmitting || !templateForm.nama || !templateForm.content}>
-                        {templateSubmitting ? 'Menyimpan…' : 'Buat Template'}
-                      </Button>
-                    ) : (
-                      <Button type="button" onClick={handleUpdateDisclaimerTemplate} disabled={submitting || templateSubmitting || !templateForm.nama || !templateForm.content}>
-                        {templateSubmitting ? 'Menyimpan…' : 'Simpan Perubahan'}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="overflow-x-auto rounded-md border">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
-                      <th className="px-3 py-2 font-medium">Nama</th>
-                      <th className="px-3 py-2 font-medium">Konten (preview)</th>
-                      <th className="px-3 py-2 font-medium text-center">Status</th>
-                      <th className="px-3 py-2 font-medium text-right" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {disclaimerTemplates.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="px-3 py-4 text-center text-xs text-muted-foreground">
-                          Belum ada template disclaimer. Klik &ldquo;+ Tambah Template&rdquo; untuk membuat yang pertama.
-                        </td>
-                      </tr>
-                    ) : (
-                      disclaimerTemplates.map((t) => (
-                        <tr key={t.id} className="border-b">
-                          <td className="px-3 py-2">
-                            <span className="font-medium text-[var(--reader-foreground)]">{t.nama}</span>
-                          </td>
-                          <td className="px-3 py-2 text-xs text-muted-foreground truncate max-w-[200px]">
-                            {t.content}
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${t.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                              {t.isActive ? 'Aktif' : 'Nonaktif'}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 text-right text-xs">
-                            {editingTemplateId === t.id ? (
-                              <Button type="button" variant="outline" size="icon-sm" onClick={cancelEditTemplate} disabled={submitting || templateSubmitting}>
-                                <X className="h-3.5 w-3.5" />
-                              </Button>
-                            ) : (
-                              <>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon-sm"
-                                  onClick={() => startEditTemplate(t)}
-                                  disabled={submitting || templateSubmitting}
-                                  aria-label={`Edit template ${t.nama}`}
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="destructive"
-                                  size="icon-sm"
-                                  onClick={() => handleDeleteDisclaimerTemplate(t.id)}
-                                  disabled={submitting || templateSubmitting}
-                                  aria-label={`Hapus template ${t.nama}`}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
             </div>
 
             <div className="space-y-3 border-t pt-4">
