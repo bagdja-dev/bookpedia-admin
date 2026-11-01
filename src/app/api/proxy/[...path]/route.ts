@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { backendFetch } from '@/lib/backend-api';
-import { PLATFORM_SLUG_HEADER } from '@/lib/platform-slug-header';
 
 type RouteContext = { params: Promise<{ path: string[] }> };
 
@@ -22,17 +21,6 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
     const body = await request.text();
     if (body) options.body = body;
   }
-
-  // Forward internal platform-slug header ke API supaya backend bisa scope
-  // data per-Platform (mis. disclaimer-templates, libraries, books).
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  const platformSlug = request.headers.get(PLATFORM_SLUG_HEADER);
-  if (platformSlug) {
-    headers[PLATFORM_SLUG_HEADER] = platformSlug;
-  }
-  options.headers = headers;
 
   const result = await backendFetch(path, options);
 
