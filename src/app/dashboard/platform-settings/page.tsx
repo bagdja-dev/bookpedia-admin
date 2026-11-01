@@ -341,7 +341,7 @@ export default function PlatformSettingsPage() {
       return;
     }
     let cancelled = false;
-    apiClient<DisclaimerTemplate[]>(`/disclaimer-templates`).then((data) => {
+    apiClient<DisclaimerTemplate[]>(`/platforms/${selectedPlatform.id}/disclaimer-templates`).then((data) => {
       if (!cancelled) setDisclaimerTemplates(data ?? []);
     }).catch(() => {
       // Gagal diam-diam — template disclaimer bukan kritikal
@@ -550,7 +550,7 @@ export default function PlatformSettingsPage() {
 
   async function fetchDisclaimerTemplates() {
     if (!selectedPlatform) return;
-    const data = await apiClient<DisclaimerTemplate[]>(`/disclaimer-templates`);
+    const data = await apiClient<DisclaimerTemplate[]>(`/platforms/${selectedPlatform.id}/disclaimer-templates`);
     setDisclaimerTemplates(data ?? []);
   }
 
@@ -564,7 +564,7 @@ export default function PlatformSettingsPage() {
         isActive: templateForm.isActive,
         isDefault: templateForm.isDefault,
       };
-      await apiClient<DisclaimerTemplate>(`/disclaimer-templates`, {
+      await apiClient<DisclaimerTemplate>(`/platforms/${selectedPlatform.id}/disclaimer-templates`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
@@ -589,7 +589,7 @@ export default function PlatformSettingsPage() {
         isActive: templateForm.isActive,
         isDefault: templateForm.isDefault,
       };
-      await apiClient<DisclaimerTemplate>(`/disclaimer-templates/${editingTemplateId}`, {
+      await apiClient<DisclaimerTemplate>(`/platforms/${selectedPlatform.id}/disclaimer-templates/${editingTemplateId}`, {
         method: 'PATCH',
         body: JSON.stringify(payload),
       });
@@ -608,7 +608,7 @@ export default function PlatformSettingsPage() {
     if (!selectedPlatform) return;
     if (!window.confirm('Hapus template disclaimer ini? Book yang memilih template ini akan tidak menampilkan disclaimer.')) return;
     try {
-      await apiClient<DeletedResponse>(`/disclaimer-templates/${id}`, { method: 'DELETE' });
+      await apiClient<DeletedResponse>(`/platforms/${selectedPlatform.id}/disclaimer-templates/${id}`, { method: 'DELETE' });
       await fetchDisclaimerTemplates();
       toast.success('Template disclaimer berhasil dihapus.');
     } catch (err) {
