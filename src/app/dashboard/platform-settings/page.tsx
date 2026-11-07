@@ -104,6 +104,7 @@ interface FormState {
   seoDefaultOgType: 'website' | 'book' | 'profile';
   seoPrefix: string;
   seoSuffix: string;
+  aboutContent: string;
   termsAndConditions: string;
   privacyPolicy: string;
   contactPhone: string;
@@ -154,6 +155,7 @@ const EMPTY_FORM: FormState = {
   seoDefaultOgType: 'website',
   seoPrefix: '',
   seoSuffix: '',
+  aboutContent: '',
   termsAndConditions: '',
   privacyPolicy: '',
   contactPhone: '',
@@ -205,6 +207,7 @@ function platformToForm(platform: Platform): FormState {
     seoDefaultOgType: platform.seoDefaultOgType ?? 'website',
     seoPrefix: platform.seoPrefix ?? '',
     seoSuffix: platform.seoSuffix ?? '',
+    aboutContent: platform.aboutContent ?? '',
     termsAndConditions: platform.termsAndConditions ?? '',
     privacyPolicy: platform.privacyPolicy ?? '',
     contactPhone: platform.contactPhone ?? '',
@@ -452,6 +455,7 @@ export default function PlatformSettingsPage() {
         seoDefaultOgType: form.seoDefaultOgType,
         seoPrefix: form.seoPrefix.trim() || undefined,
         seoSuffix: form.seoSuffix.trim() || undefined,
+        aboutContent: form.aboutContent.trim() || null,
         termsAndConditions: form.termsAndConditions.trim(),
         privacyPolicy: form.privacyPolicy.trim(),
         contactPhone: form.contactPhone.trim() || null,
@@ -1127,6 +1131,16 @@ export default function PlatformSettingsPage() {
                 <SeoTemplateField id="seoPrefix" label="Prefix" value={form.seoPrefix} onChange={(value) => updateField('seoPrefix', value)} placeholder="Bagdja" />
                 <SeoTemplateField id="seoSuffix" label="Suffix" value={form.seoSuffix} onChange={(value) => updateField('seoSuffix', value)} placeholder="Bookpedia" />
               </div>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <Label htmlFor="aboutContent">Tentang Platform</Label>
+                <p className="text-xs text-muted-foreground">
+                  Konten ini tampil di halaman publik /about khusus Platform ini. Isi dengan informasi yang benar dan dapat diverifikasi. HTML didukung, misalnya &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;, dan &lt;a&gt;.
+                </p>
+              </div>
+              <TermsAndConditionsEditor value={form.aboutContent} onChange={(value) => updateField('aboutContent', value)} disabled={submitting} toolbarLabel="Format konten Tentang Platform" />
             </div>
 
             <div className="space-y-3 border-t pt-4">
