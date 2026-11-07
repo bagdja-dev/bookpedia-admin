@@ -9,6 +9,34 @@
 export type RatingMode = 'book' | 'chapter';
 export type StudioEditMode = 'auto' | 'manual';
 
+export type DonationLocation = 'home' | 'book_detail' | 'chapter_end' | 'footer' | 'reader_menu';
+
+export interface DonationOption {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  type: 'fixed' | 'custom';
+  amount?: number;
+  multiple?: number;
+  isActive: boolean;
+  isPopular: boolean;
+}
+
+export interface DonationSettings {
+  enabled: boolean;
+  title: string;
+  description: string;
+  buttonLabel: string;
+  locations: DonationLocation[];
+  options: DonationOption[];
+}
+
+export interface DonationSettingsResponse {
+  settings: DonationSettings;
+  recipientConfigured: boolean;
+}
+
 export interface PlatformColors {
   bg: string;
   surface: string;
@@ -74,10 +102,7 @@ export interface CatalogSectionConfig {
     library?: string;
     search?: string;
     sort?: 'updated' | 'views' | 'title';
-    sortRules?: Array<{
-      field: 'updated' | 'views' | 'title';
-      direction: 'asc' | 'desc';
-    }>;
+    sortRules?: Array<{ field: 'updated' | 'views' | 'title'; direction: 'asc' | 'desc' }>;
   };
   layout: 'grid' | 'slider';
   limit: number;
@@ -133,8 +158,11 @@ export interface Platform {
   id: string;
   nama: string;
   slug: string;
+  ownerOrgId: string | null;
+  ownerOrgName: string | null;
   tagline: string | null;
   motto: string | null;
+  seoSiteTitleSuffix: string | null;
   logoUrl: string | null;
   faviconUrl: string | null;
   notificationSoundUrl: string | null;
@@ -153,6 +181,8 @@ export interface Platform {
   maxFreeChapters: number;
   /** Tampilkan badge status cerita (draft/ongoing/completed) di halaman publik. Tidak mempengaruhi Studio. */
   showBookStatus: boolean;
+  /** Tampilkan disclaimer pada halaman detail Book publik Platform ini. */
+  enableDisclaimer: boolean;
   /** Fase 6 — batas jumlah Tag yang boleh dilekatkan ke satu Book. */
   maxTagsPerBook: number;
   /** Verifikasi Google Search Console ("HTML file" method) — nama file persis dari Google. */
@@ -203,8 +233,29 @@ export interface Platform {
   readingTypography: ReadingTypography;
 }
 
+export interface PlatformOwnerOrganization {
+  id: string;
+  name: string;
+  orgId: string;
+}
+
+export interface PlatformOwnerWalletSettings {
+  ownerWalletId: string | null;
+  walletError?: string;
+  selectedOrgSlug?: string;
+  organizations: PlatformOwnerOrganization[];
+}
+
+export interface InitializedOrganizationWallet {
+  walletId: string;
+  orgId: string;
+  currencyCode: string;
+  isActive: boolean;
+}
+
 export interface PlatformsResponse {
   isOwner: boolean;
+  ownedOrganizations: PlatformOwnerOrganization[];
   platforms: Platform[];
 }
 
@@ -287,10 +338,12 @@ export interface PlatformUserReadingResponse {
 }
 
 export interface CreatePlatformPayload {
+  ownerOrgId?: string;
   nama: string;
   slug: string;
   tagline?: string | null;
   motto?: string | null;
+  seoSiteTitleSuffix?: string | null;
   logoUrl?: string;
   faviconUrl?: string;
   notificationSoundUrl?: string;
@@ -303,6 +356,7 @@ export interface CreatePlatformPayload {
   adsensePublisherId?: string | null;
   maxFreeChapters?: number;
   showBookStatus?: boolean;
+  enableDisclaimer?: boolean;
   maxTagsPerBook?: number;
   enableRating?: boolean;
   ratingMode?: RatingMode;
@@ -355,6 +409,7 @@ export interface UpdatePlatformPayload {
   slug?: string;
   tagline?: string | null;
   motto?: string | null;
+  seoSiteTitleSuffix?: string | null;
   logoUrl?: string;
   faviconUrl?: string;
   notificationSoundUrl?: string;
@@ -367,6 +422,7 @@ export interface UpdatePlatformPayload {
   isActive?: boolean;
   maxFreeChapters?: number;
   showBookStatus?: boolean;
+  enableDisclaimer?: boolean;
   maxTagsPerBook?: number;
   searchConsoleVerificationFilename?: string | null;
   searchConsoleVerificationContent?: string | null;
@@ -400,15 +456,7 @@ export interface UpdatePlatformPayload {
   readingTypography?: ReadingTypography | null;
 }
 
-export type PlatformBuildJobStatus =
-  | 'queued'
-  | 'validating'
-  | 'building'
-  | 'signing'
-  | 'uploading'
-  | 'success'
-  | 'failed'
-  | 'cancelled';
+export type PlatformBuildJobStatus = 'queued' | 'validating' | 'building' | 'signing' | 'uploading' | 'success' | 'failed' | 'cancelled';
 
 export type PlatformBuildType = 'release' | 'debug';
 export type PlatformBuildOutputFormat = 'aab' | 'apk';
@@ -524,11 +572,7 @@ export interface PlatformStaffInvitationResponse {
 export interface DomainVerificationResponse {
   recordName: string;
   recordValue: string;
-  dnsTarget: {
-    recordType: 'A';
-    recordName: string;
-    recordValue: string;
-  };
+  dnsTarget: { recordType: 'A'; recordName: string; recordValue: string };
 }
 
 export interface DomainCheckResponse {

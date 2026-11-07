@@ -11,12 +11,12 @@ import {
 } from 'react';
 
 import { apiClient } from '@/lib/api-client';
-import type { Platform, PlatformsResponse } from '@/lib/types';
+import type { Platform, PlatformsResponse, PlatformOwnerOrganization } from '@/lib/types';
 
 /**
- * Platform switcher TANPA routing berbasis URL — port persis
- * `MarketProvider`/`useMarketContext` (bagdja-auction-admin). Owner bisa
- * punya banyak Platform; "yang aktif" disimpan di React Context +
+ * Platform switcher TANPA routing berbasis URL. Owner melihat Platform
+ * organisasi yang dimilikinya; staff melihat Platform yang ditugaskan.
+ * "Yang aktif" disimpan di React Context +
  * `localStorage`, dipilih lewat dropdown Topbar — bukan navigasi
  * `/dashboard/[platformId]/...`. Semua halaman platform-scoped
  * (`platform-settings`, `staff`) flat route, ambil `activePlatform` dari
@@ -29,6 +29,8 @@ interface PlatformContextValue {
   activePlatform: Platform | null;
   platformId: string | null;
   isOwner: boolean;
+  canCreatePlatform: boolean;
+  ownedOrganizations: PlatformOwnerOrganization[];
   loading: boolean;
   switchPlatform: (platformId: string) => void;
   refresh: () => Promise<void>;
@@ -39,14 +41,16 @@ const PlatformContext = createContext<PlatformContextValue | null>(null);
 export function PlatformProvider({ children }: { children: ReactNode }) {
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [activePlatform, setActivePlatform] = useState<Platform | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
+  const [canCreatePlatform, setCanCreatePlatform] = useState(false);
+  const [ownedOrganizations, setOwnedOrganizations] = useState<PlatformOwnerOrganization[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
       const data = await apiClient<PlatformsResponse>('/platforms');
       setPlatforms(data.platforms);
-      setIsOwner(data.isOwner);
+      setCanCreatePlatform(data.isOwner);
+      setOwnedOrganizations(data.ownedOrganizations ?? []);
 
       const savedId =
         typeof localStorage !== 'undefined'
@@ -56,7 +60,8 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       setActivePlatform(found ?? data.platforms[0] ?? null);
     } catch {
       setPlatforms([]);
-      setIsOwner(false);
+      setCanCreatePlatform(false);
+      setOwnedOrganizations([]);
       setActivePlatform(null);
     } finally {
       setLoading(false);
@@ -83,12 +88,14 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       platforms,
       activePlatform,
       platformId: activePlatform?.id ?? null,
-      isOwner,
+      isOwner: Boolean(activePlatform?.ownerOrgId && ownedOrganizations.some((organization) => organization.id === activePlatform.ownerOrgId)),
+      canCreatePlatform,
+      ownedOrganizations,
       loading,
       switchPlatform,
       refresh,
     }),
-    [platforms, activePlatform, isOwner, loading, switchPlatform, refresh],
+    [platforms, activePlatform, canCreatePlatform, ownedOrganizations, loading, switchPlatform, refresh],
   );
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>;

@@ -147,7 +147,7 @@ export function PlatformBuildsSection() {
       const refreshedJobs = await Promise.all(data.map(async (job) => {
         if (!job.external_job_id) return job;
         try {
-          return await apiClient<PlatformBuildJob>(`/platform-builds/jobs/${job.id}/status`);
+          return await apiClient<PlatformBuildJob>(`/platform-builds/jobs/${job.id}/status?platformId=${activePlatform.id}`);
         } catch {
           return job;
         }
@@ -170,7 +170,7 @@ export function PlatformBuildsSection() {
       const activeJobs = jobs.filter((job) => job.external_job_id && ['queued', 'validating', 'building', 'signing', 'uploading'].includes(job.status));
       const refreshed = await Promise.all(activeJobs.map(async (job) => {
         try {
-          return [job.id, await apiClient<PlatformBuildJob>(`/platform-builds/jobs/${job.id}/status`)] as const;
+          return [job.id, await apiClient<PlatformBuildJob>(`/platform-builds/jobs/${job.id}/status?platformId=${activePlatform.id}`)] as const;
         } catch {
           return [job.id, null] as const;
         }
