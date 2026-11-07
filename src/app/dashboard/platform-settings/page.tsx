@@ -19,7 +19,23 @@ import { PlatformBuildsSection } from '@/components/platform-builds-section';
 import { TermsAndConditionsEditor } from '@/components/terms-and-conditions-editor';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
-import type { CreatePlatformPayload, DomainVerificationResponse, Platform, PlatformAdSlots, PlatformColors, RatingMode, ReadingTypography, StudioEditMode, UpdatePlatformPayload, DisclaimerTemplate, CreateDisclaimerTemplatePayload, UpdateDisclaimerTemplatePayload, DeletedResponse } from '@/lib/types';
+import type {
+  CreatePlatformPayload,
+  DomainVerificationResponse,
+  Platform,
+  PlatformAdSlots,
+  PlatformColors,
+  RatingMode,
+  ReadingTypography,
+  StudioEditMode,
+  UpdatePlatformPayload,
+  DisclaimerTemplate,
+  CreateDisclaimerTemplatePayload,
+  UpdateDisclaimerTemplatePayload,
+  DeletedResponse,
+  InitializedOrganizationWallet,
+  PlatformOwnerWalletSettings,
+} from '@/lib/types';
 
 const DEFAULT_COLORS: PlatformColors = {
   bg: '#fbf6ee',
@@ -51,6 +67,7 @@ interface FormState {
   slug: string;
   tagline: string;
   motto: string;
+  seoSiteTitleSuffix: string;
   logoUrl: string;
   loginBackgroundUrl: string;
   faviconUrl: string;
@@ -61,6 +78,7 @@ interface FormState {
   rendererKey: string;
   maxFreeChapters: string;
   showBookStatus: boolean;
+  enableDisclaimer: boolean;
   maxTagsPerBook: string;
   searchConsoleVerificationFilename: string;
   searchConsoleVerificationContent: string;
@@ -100,6 +118,7 @@ const EMPTY_FORM: FormState = {
   slug: '',
   tagline: '',
   motto: '',
+  seoSiteTitleSuffix: 'Baca & Tulis Cerita',
   logoUrl: '',
   loginBackgroundUrl: '',
   faviconUrl: '',
@@ -110,6 +129,7 @@ const EMPTY_FORM: FormState = {
   rendererKey: 'reader',
   maxFreeChapters: '0',
   showBookStatus: true,
+  enableDisclaimer: true,
   maxTagsPerBook: '5',
   searchConsoleVerificationFilename: '',
   searchConsoleVerificationContent: '',
@@ -149,6 +169,7 @@ function platformToForm(platform: Platform): FormState {
     slug: platform.slug ?? '',
     tagline: platform.tagline ?? '',
     motto: platform.motto ?? '',
+    seoSiteTitleSuffix: platform.seoSiteTitleSuffix ?? '',
     logoUrl: platform.logoUrl ?? '',
     loginBackgroundUrl: platform.loginBackgroundUrl ?? '',
     faviconUrl: platform.faviconUrl ?? '',
@@ -159,6 +180,7 @@ function platformToForm(platform: Platform): FormState {
     rendererKey: platform.rendererKey || 'reader',
     maxFreeChapters: String(platform.maxFreeChapters ?? 0),
     showBookStatus: platform.showBookStatus ?? true,
+    enableDisclaimer: platform.enableDisclaimer ?? true,
     maxTagsPerBook: String(platform.maxTagsPerBook ?? 5),
     searchConsoleVerificationFilename: platform.searchConsoleVerificationFilename ?? '',
     searchConsoleVerificationContent: platform.searchConsoleVerificationContent ?? '',
@@ -225,17 +247,10 @@ function DomainRecordRow({
     <tr className={last ? '' : 'border-b'}>
       <td className="px-3 py-2 align-top font-mono text-xs">{type}</td>
       <td className="px-3 py-2 align-top font-mono text-xs break-all">{name}</td>
-      <td className={`px-3 py-2 align-top font-mono text-xs break-all ${isEmpty ? 'text-muted-foreground' : ''}`}>
-        {isEmpty ? (placeholder ?? '—') : value}
-      </td>
+      <td className={`px-3 py-2 align-top font-mono text-xs break-all ${isEmpty ? 'text-muted-foreground' : ''}`}>{isEmpty ? (placeholder ?? '—') : value}</td>
       <td className="px-3 py-2 align-top">
         {!isEmpty && (
-          <button
-            type="button"
-            onClick={() => onCopy(fieldKey, value)}
-            className="text-muted-foreground hover:text-foreground"
-            aria-label="Salin nilai"
-          >
+          <button type="button" onClick={() => onCopy(fieldKey, value)} className="text-muted-foreground hover:text-foreground" aria-label="Salin nilai">
             {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
           </button>
         )}
@@ -247,7 +262,7 @@ function DomainRecordRow({
 export default function PlatformSettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { platforms, activePlatform, isOwner, loading, refresh } = usePlatformContext();
+  const { platforms, activePlatform, isOwner, ownedOrganizations, loading, refresh } = usePlatformContext();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -269,13 +284,18 @@ export default function PlatformSettingsPage() {
   // Disclaimer templates state
   const [disclaimerTemplates, setDisclaimerTemplates] = useState<DisclaimerTemplate[]>([]);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
-  const [templateForm, setTemplateForm] = useState<{ nama: string; content: string; isActive: boolean; isDefault: boolean }>({
-    nama: '',
-    content: '',
-    isActive: true,
-    isDefault: false,
-  });
+  const [templateForm, setTemplateForm] = useState<{ nama: string; content: string; isActive: boolean; isDefault: boolean }>({ nama: '', content: '', isActive: true, isDefault: false });
   const [templateSubmitting, setTemplateSubmitting] = useState(false);
+  const [ownerWalletSettings, setOwnerWalletSettings] = useState<PlatformOwnerWalletSettings | null>(null);
+  const [ownerWalletLoading, setOwnerWalletLoading] = useState(false);
+  const [ownerWalletSubmitting, setOwnerWalletSubmitting] = useState(false);
+  const [initializingOwnerWallet, setInitializingOwnerWallet] = useState(false);
+  const [initializedOwnerWallet, setInitializedOwnerWallet] = useState<{
+    platformId: string;
+    wallet: InitializedOrganizationWallet;
+  } | null>(null);
+  const [ownerOrganizationSlug, setOwnerOrganizationSlug] = useState('');
+  const [ownerOrgId, setOwnerOrgId] = useState('');
 
   // Domain custom belum ada di form Platform (kolom `domain` di-set lewat
   // endpoint verify/check, bukan field yang diedit langsung di sini — beda
@@ -283,12 +303,9 @@ export default function PlatformSettingsPage() {
   // menargetkan `selectedPlatform.domain` yang SUDAH persisted.
   const [domainInput, setDomainInput] = useState('');
 
-  const isCreating = isOwner && selectedId === null;
+  const isCreating = selectedId === null;
 
-  const selectedPlatform = useMemo(
-    () => platforms.find((p) => p.id === selectedId) ?? null,
-    [platforms, selectedId],
-  );
+  const selectedPlatform = useMemo(() => platforms.find((p) => p.id === selectedId) ?? null, [platforms, selectedId]);
 
   const savedDomain = selectedPlatform?.domain ?? '';
 
@@ -309,21 +326,18 @@ export default function PlatformSettingsPage() {
   useEffect(() => {
     if (loading) return;
 
-    const wantsCreate = searchParams.get('mode') === 'create';
-    if (wantsCreate) {
+    if (searchParams.get('mode') === 'create' || !activePlatform) {
       setSelectedId(null);
-      setForm(EMPTY_FORM);
-      setSlugTouched(false);
+      router.replace('/dashboard/platforms/new');
       return;
     }
 
-    if (activePlatform) {
-      setSelectedId(activePlatform.id);
-      setForm(platformToForm(activePlatform));
-      setSlugTouched(true);
-    }
+    setSelectedId(activePlatform.id);
+    setForm(platformToForm(activePlatform));
+    setOwnerOrgId(activePlatform.ownerOrgId ?? '');
+    setSlugTouched(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, activePlatform?.id, searchParams]);
+  }, [loading, activePlatform?.id, router, searchParams]);
 
   // Ganti Platform yang diedit -> instruksi verifikasi domain Platform
   // sebelumnya tidak relevan lagi, jangan biarkan nyangkut di layar.
@@ -341,13 +355,44 @@ export default function PlatformSettingsPage() {
       return;
     }
     let cancelled = false;
-    apiClient<DisclaimerTemplate[]>(`/platforms/${selectedPlatform.id}/disclaimer-templates`).then((data) => {
-      if (!cancelled) setDisclaimerTemplates(data ?? []);
-    }).catch(() => {
-      // Gagal diam-diam — template disclaimer bukan kritikal
-    });
-    return () => { cancelled = true; };
+    apiClient<DisclaimerTemplate[]>(`/platforms/${selectedPlatform.id}/disclaimer-templates`)
+      .then((data) => {
+        if (!cancelled) setDisclaimerTemplates(data ?? []);
+      })
+      .catch(() => {
+        // Gagal diam-diam — template disclaimer bukan kritikal
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedPlatform?.id]);
+
+  useEffect(() => {
+    if (!selectedPlatform || !isOwner) {
+      setOwnerWalletSettings(null);
+      setOwnerOrganizationSlug('');
+      return;
+    }
+
+    let cancelled = false;
+    setOwnerWalletLoading(true);
+    apiClient<PlatformOwnerWalletSettings>(`/platforms/${selectedPlatform.id}/owner-wallet`)
+      .then((settings) => {
+        if (cancelled) return;
+        setOwnerWalletSettings(settings);
+        setOwnerOrganizationSlug(settings.selectedOrgSlug ?? '');
+      })
+      .catch((error) => {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : 'Gagal memuat wallet pemilik Platform.');
+      })
+      .finally(() => {
+        if (!cancelled) setOwnerWalletLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPlatform?.id, isOwner]);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => {
@@ -363,14 +408,8 @@ export default function PlatformSettingsPage() {
     setForm((prev) => ({ ...prev, colors: { ...prev.colors, [key]: value } }));
   }
 
-  function updateAdSlot(
-    key: 'homepage' | 'bookDetail' | 'chapterReader',
-    value: Partial<PlatformAdSlots['homepage']>,
-  ) {
-    setForm((prev) => ({
-      ...prev,
-      adSlots: { ...prev.adSlots, [key]: { ...prev.adSlots[key], ...value } },
-    }));
+  function updateAdSlot(key: 'homepage' | 'bookDetail' | 'chapterReader', value: Partial<PlatformAdSlots['homepage']>) {
+    setForm((prev) => ({ ...prev, adSlots: { ...prev.adSlots, [key]: { ...prev.adSlots[key], ...value } } }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -379,10 +418,12 @@ export default function PlatformSettingsPage() {
     setSubmitting(true);
     try {
       const payload: CreatePlatformPayload & Partial<UpdatePlatformPayload> = {
+        ...(isCreating ? { ownerOrgId } : {}),
         nama: form.nama.trim(),
         slug: form.slug.trim(),
         tagline: form.tagline.trim() || null,
         motto: form.motto.trim() || null,
+        seoSiteTitleSuffix: form.seoSiteTitleSuffix.trim() || null,
         logoUrl: form.logoUrl.trim() || undefined,
         faviconUrl: form.faviconUrl.trim() || undefined,
         notificationSoundUrl: form.notificationSoundUrl.trim() || undefined,
@@ -392,6 +433,7 @@ export default function PlatformSettingsPage() {
         rendererKey: form.rendererKey.trim() || 'reader',
         maxFreeChapters: Math.max(0, Number(form.maxFreeChapters) || 0),
         showBookStatus: form.showBookStatus,
+        enableDisclaimer: form.enableDisclaimer,
         maxTagsPerBook: Math.max(0, Number(form.maxTagsPerBook) || 0),
         enableRating: form.enableRating,
         ratingMode: form.ratingMode,
@@ -436,10 +478,11 @@ export default function PlatformSettingsPage() {
       };
 
       if (isCreating) {
-        const created = await apiClient<Platform>('/platforms', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
+        if (!ownerOrgId) {
+          toast.error('Pilih atau buat organisasi pemilik Platform terlebih dahulu.');
+          return;
+        }
+        const created = await apiClient<Platform>('/platforms', { method: 'POST', body: JSON.stringify(payload) });
         toast.success(`Platform "${created.nama}" berhasil dibuat.`);
 
         // Jadikan Platform baru ini aktif SEBELUM router.replace — refresh()
@@ -455,17 +498,14 @@ export default function PlatformSettingsPage() {
         await refresh();
         router.replace('/dashboard/platform-settings');
       } else if (selectedPlatform) {
-        const updated = await apiClient<Platform>(`/platforms/${selectedPlatform.id}`, {
-          method: 'PATCH',
-          body: JSON.stringify(payload),
-        });
+        const updated = await apiClient<Platform>(`/platforms/${selectedPlatform.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
         toast.success(`Platform "${updated.nama}" berhasil disimpan.`);
       }
 
       await refresh();
     } catch (err) {
       if (err instanceof ApiError) {
-        toast.error(err.status === 403 ? 'Hanya Owner yang boleh membuat Platform baru.' : err.message);
+        toast.error(err.status === 403 ? 'Pilih organisasi yang Anda miliki sebagai Owner untuk membuat Platform.' : err.message);
       } else {
         toast.error(err instanceof Error ? err.message : 'Gagal menyimpan Platform.');
       }
@@ -478,10 +518,7 @@ export default function PlatformSettingsPage() {
     if (!selectedPlatform || !domainInput.trim()) return;
     setSubmitting(true);
     try {
-      await apiClient<Platform>(`/platforms/${selectedPlatform.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ domain: domainInput.trim() }),
-      });
+      await apiClient<Platform>(`/platforms/${selectedPlatform.id}`, { method: 'PATCH', body: JSON.stringify({ domain: domainInput.trim() }) });
       await refresh();
       // `savedDomain` (dari selectedPlatform.domain) baru ter-update setelah
       // refresh() selesai me-refetch — useEffect auto-verify di bawah akan
@@ -493,16 +530,60 @@ export default function PlatformSettingsPage() {
     }
   }
 
+  async function handleAssignOwnerWallet() {
+    if (!selectedPlatform || !ownerOrganizationSlug) return;
+    setOwnerWalletSubmitting(true);
+    try {
+      const settings = await apiClient<PlatformOwnerWalletSettings>(`/platforms/${selectedPlatform.id}/owner-wallet`, { method: 'PUT', body: JSON.stringify({ orgSlug: ownerOrganizationSlug }) });
+      setOwnerWalletSettings(settings);
+      setOwnerOrganizationSlug(settings.selectedOrgSlug ?? '');
+      toast.success('Wallet organisasi berhasil ditautkan ke Platform.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal menautkan wallet organisasi.');
+    } finally {
+      setOwnerWalletSubmitting(false);
+    }
+  }
+
+  async function handleInitializeOwnerWallet() {
+    if (!selectedPlatform) return;
+    setInitializingOwnerWallet(true);
+    try {
+      const wallet = await apiClient<InitializedOrganizationWallet>(
+        `/platforms/${selectedPlatform.id}/owner-wallet/initialize`,
+        { method: 'POST' },
+      );
+      setInitializedOwnerWallet({ platformId: selectedPlatform.id, wallet });
+      toast.success('Wallet IDR organisasi berhasil disiapkan.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal menyiapkan wallet organisasi.');
+    } finally {
+      setInitializingOwnerWallet(false);
+    }
+  }
+
+  async function handleClearOwnerWallet() {
+    if (!selectedPlatform || !window.confirm('Lepaskan wallet penerima dari Platform ini?')) return;
+    setOwnerWalletSubmitting(true);
+    try {
+      await apiClient(`/platforms/${selectedPlatform.id}/owner-wallet`, { method: 'DELETE' });
+      setOwnerWalletSettings((current) => (current ? { ...current, ownerWalletId: null } : current));
+      setOwnerOrganizationSlug('');
+      toast.success('Wallet penerima dilepaskan dari Platform.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal melepaskan wallet.');
+    } finally {
+      setOwnerWalletSubmitting(false);
+    }
+  }
+
   async function handleVerifyDomain() {
     if (!selectedPlatform) return;
     setVerifyingDomain(true);
     setDomainError(null);
     setDomainMessage(null);
     try {
-      const info = await apiClient<DomainVerificationResponse>(
-        `/platforms/${selectedPlatform.id}/domain/verify`,
-        { method: 'POST' },
-      );
+      const info = await apiClient<DomainVerificationResponse>(`/platforms/${selectedPlatform.id}/domain/verify`, { method: 'POST' });
       setDomainVerifyInfo(info);
     } catch (err) {
       setDomainError(err instanceof ApiError ? err.message : 'Gagal memulai verifikasi domain.');
@@ -558,16 +639,8 @@ export default function PlatformSettingsPage() {
     if (!selectedPlatform) return;
     setTemplateSubmitting(true);
     try {
-      const payload: CreateDisclaimerTemplatePayload = {
-        nama: templateForm.nama.trim(),
-        content: templateForm.content.trim(),
-        isActive: templateForm.isActive,
-        isDefault: templateForm.isDefault,
-      };
-      await apiClient<DisclaimerTemplate>(`/platforms/${selectedPlatform.id}/disclaimer-templates`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      const payload: CreateDisclaimerTemplatePayload = { nama: templateForm.nama.trim(), content: templateForm.content.trim(), isActive: templateForm.isActive, isDefault: templateForm.isDefault };
+      await apiClient<DisclaimerTemplate>(`/platforms/${selectedPlatform.id}/disclaimer-templates`, { method: 'POST', body: JSON.stringify(payload) });
       setTemplateForm({ nama: '', content: '', isActive: true, isDefault: false });
       setEditingTemplateId(null);
       await fetchDisclaimerTemplates();
@@ -583,16 +656,8 @@ export default function PlatformSettingsPage() {
     if (!selectedPlatform || !editingTemplateId) return;
     setTemplateSubmitting(true);
     try {
-      const payload: UpdateDisclaimerTemplatePayload = {
-        nama: templateForm.nama.trim(),
-        content: templateForm.content.trim(),
-        isActive: templateForm.isActive,
-        isDefault: templateForm.isDefault,
-      };
-      await apiClient<DisclaimerTemplate>(`/platforms/${selectedPlatform.id}/disclaimer-templates/${editingTemplateId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
+      const payload: UpdateDisclaimerTemplatePayload = { nama: templateForm.nama.trim(), content: templateForm.content.trim(), isActive: templateForm.isActive, isDefault: templateForm.isDefault };
+      await apiClient<DisclaimerTemplate>(`/platforms/${selectedPlatform.id}/disclaimer-templates/${editingTemplateId}`, { method: 'PATCH', body: JSON.stringify(payload) });
       setTemplateForm({ nama: '', content: '', isActive: true, isDefault: false });
       setEditingTemplateId(null);
       await fetchDisclaimerTemplates();
@@ -648,21 +713,8 @@ export default function PlatformSettingsPage() {
     }
   }
 
-  if (loading) {
-    return <LoadingSpinner label="Memuat data Platform…" />;
-  }
-
-  if (!isOwner && !activePlatform) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Belum ada Platform</CardTitle>
-          <CardDescription>
-            Anda belum terdaftar sebagai staff di Platform manapun. Hubungi Owner untuk mendapatkan undangan.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
+  if (loading || !selectedPlatform) {
+    return <LoadingSpinner label={loading ? 'Memuat data Platform…' : 'Membuka wizard pembuatan Platform…'} />;
   }
 
   return (
@@ -681,13 +733,7 @@ export default function PlatformSettingsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="nama">Nama Platform</Label>
-                <Input
-                  id="nama"
-                  value={form.nama}
-                  onChange={(e) => updateField('nama', e.target.value)}
-                  placeholder="Teknobuku"
-                  required
-                />
+                <Input id="nama" value={form.nama} onChange={(e) => updateField('nama', e.target.value)} placeholder="Teknobuku" required />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="slug">Slug</Label>
@@ -702,10 +748,7 @@ export default function PlatformSettingsPage() {
                   required
                 />
                 {!isCreating && (
-                  <p className="text-xs text-amber-600">
-                    Mengubah slug langsung mengubah subdomain publik Platform ini — link/bookmark lama ke
-                    subdomain sebelumnya akan berhenti berfungsi.
-                  </p>
+                  <p className="text-xs text-amber-600">Mengubah slug langsung mengubah subdomain publik Platform ini — link/bookmark lama ke subdomain sebelumnya akan berhenti berfungsi.</p>
                 )}
               </div>
               <ImageUpload
@@ -753,22 +796,16 @@ export default function PlatformSettingsPage() {
                     previewHeight={108}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Tampil di login.bagdja.com saat pembaca masuk dari Platform ini, bersama Favicon di atas sebagai ikon. Landscape
-                    minimal 1920×1080 disarankan. Kosongkan untuk memakai background default Bookpedia.
+                    Tampil di login.bagdja.com saat pembaca masuk dari Platform ini, bersama Favicon di atas sebagai ikon. Landscape minimal 1920×1080 disarankan. Kosongkan untuk memakai background
+                    default Bookpedia.
                   </p>
                 </div>
               )}
               <div className="space-y-1.5">
                 <Label htmlFor="rendererKey">Renderer Key</Label>
-                <Input
-                  id="rendererKey"
-                  value={form.rendererKey}
-                  onChange={(e) => updateField('rendererKey', e.target.value)}
-                  placeholder="reader"
-                />
+                <Input id="rendererKey" value={form.rendererKey} onChange={(e) => updateField('rendererKey', e.target.value)} placeholder="reader" />
                 <p className="text-xs text-muted-foreground">
-                  Satu-satunya template yang ada saat ini adalah &ldquo;reader&rdquo;. Renderer baru
-                  (mis. musik) ditambahkan nanti begitu benar-benar dibutuhkan.
+                  Satu-satunya template yang ada saat ini adalah &ldquo;reader&rdquo;. Renderer baru (mis. musik) ditambahkan nanti begitu benar-benar dibutuhkan.
                 </p>
               </div>
             </div>
@@ -776,24 +813,12 @@ export default function PlatformSettingsPage() {
             <div className="grid gap-4 border-t pt-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="tagline">Tagline</Label>
-                <Input
-                  id="tagline"
-                  value={form.tagline}
-                  onChange={(e) => updateField('tagline', e.target.value)}
-                  placeholder="Baca dan tulis cerita favoritmu"
-                  maxLength={255}
-                />
+                <Input id="tagline" value={form.tagline} onChange={(e) => updateField('tagline', e.target.value)} placeholder="Baca dan tulis cerita favoritmu" maxLength={255} />
                 <p className="text-xs text-muted-foreground">Tampil di bawah nama atau logo pada renderer publik.</p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="motto">Moto</Label>
-                <Input
-                  id="motto"
-                  value={form.motto}
-                  onChange={(e) => updateField('motto', e.target.value)}
-                  placeholder="Setiap cerita punya tempat untuk pulang"
-                  maxLength={255}
-                />
+                <Input id="motto" value={form.motto} onChange={(e) => updateField('motto', e.target.value)} placeholder="Setiap cerita punya tempat untuk pulang" maxLength={255} />
                 <p className="text-xs text-muted-foreground">Tampil bersama tagline pada renderer publik.</p>
               </div>
             </div>
@@ -801,9 +826,7 @@ export default function PlatformSettingsPage() {
             <div className="space-y-3 border-t pt-4">
               <div>
                 <Label>Studio Settings</Label>
-                <p className="text-xs text-muted-foreground">
-                  Atur cara editor Chapter menyimpan perubahan untuk semua penulis di Platform ini.
-                </p>
+                <p className="text-xs text-muted-foreground">Atur cara editor Chapter menyimpan perubahan untuk semua penulis di Platform ini.</p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="studioEditMode">Mode Penyimpanan Editor</Label>
@@ -816,10 +839,7 @@ export default function PlatformSettingsPage() {
                   <option value="auto">Auto save (simpan otomatis setelah berhenti mengetik)</option>
                   <option value="manual">Manual (klik Edit lalu Simpan)</option>
                 </select>
-                <p className="text-xs text-muted-foreground">
-                  Mode Manual membuka Chapter dalam keadaan baca saja. Penulis harus klik Edit dan Simpan
-                  untuk menyimpan perubahan.
-                </p>
+                <p className="text-xs text-muted-foreground">Mode Manual membuka Chapter dalam keadaan baca saja. Penulis harus klik Edit dan Simpan untuk menyimpan perubahan.</p>
               </div>
             </div>
 
@@ -827,8 +847,7 @@ export default function PlatformSettingsPage() {
               <div>
                 <Label>Warna</Label>
                 <p className="text-xs text-muted-foreground">
-                  Skema warna reader Platform ini. Warna umum dipakai di mana-mana; warna per bagian (header, kartu buku,
-                  footer, tombol, status, area baca) opsional untuk menimpanya.
+                  Skema warna reader Platform ini. Warna umum dipakai di mana-mana; warna per bagian (header, kartu buku, footer, tombol, status, area baca) opsional untuk menimpanya.
                 </p>
               </div>
               <PlatformColorSettings colors={form.colors} onChange={updateColorField} />
@@ -845,93 +864,67 @@ export default function PlatformSettingsPage() {
                 className="max-w-md font-mono"
               />
               <p className="text-xs text-muted-foreground">
-                Dirender sebagai meta tag verifikasi AdSense di &lt;head&gt; dan otomatis membuat file <code>/ads.txt</code> untuk domain Platform ini. Isi ID publisher (format <code>ca-pub-…</code>), bukan seluruh tag HTML.
+                Dirender sebagai meta tag verifikasi AdSense di &lt;head&gt; dan otomatis membuat file <code>/ads.txt</code> untuk domain Platform ini. Isi ID publisher (format <code>ca-pub-…</code>),
+                bukan seluruh tag HTML.
               </p>
             </div>
 
             <div className="flex items-start gap-2 border-t pt-4">
-              <input
-                type="checkbox"
-                id="lockStudio"
-                checked={form.lockStudio}
-                onChange={(e) => updateField('lockStudio', e.target.checked)}
-                className="mt-1"
-              />
+              <input type="checkbox" id="lockStudio" checked={form.lockStudio} onChange={(e) => updateField('lockStudio', e.target.checked)} className="mt-1" />
               <div>
                 <Label htmlFor="lockStudio">Kunci Pendaftaran Penulis</Label>
                 <p className="text-xs text-muted-foreground">
-                  Kalau aktif, POST /libraries ditutup untuk Platform ini — TANPA pengecualian.
-                  Satu-satunya jalur saat terkunci adalah insert manual ke DB oleh tim Bagdja.
+                  Kalau aktif, POST /libraries ditutup untuk Platform ini — TANPA pengecualian. Satu-satunya jalur saat terkunci adalah insert manual ke DB oleh tim Bagdja.
                 </p>
               </div>
             </div>
 
             <div className="space-y-1.5 border-t pt-4">
               <Label htmlFor="maxFreeChapters">Maximum Free Chapter</Label>
-              <Input
-                id="maxFreeChapters"
-                type="number"
-                min={0}
-                value={form.maxFreeChapters}
-                onChange={(e) => updateField('maxFreeChapters', e.target.value)}
-                className="max-w-[160px]"
-              />
+              <Input id="maxFreeChapters" type="number" min={0} value={form.maxFreeChapters} onChange={(e) => updateField('maxFreeChapters', e.target.value)} className="max-w-[160px]" />
               <p className="text-xs text-muted-foreground">
-                Jumlah Chapter pertama tiap Book (di Platform ini) yang bisa dibaca TANPA login — untuk
-                SEO & memberi calon pembaca &ldquo;coba baca&rdquo; sebelum daftar.{' '}
-                <strong>Isi 0 = SEMUA Chapter gratis</strong> (bukan &ldquo;nol Chapter gratis&rdquo;).
-                Penulis bisa override nilai ini per-Book (harus 0 atau lebih besar dari nilai di sini).
+                Jumlah Chapter pertama tiap Book (di Platform ini) yang bisa dibaca TANPA login — untuk SEO & memberi calon pembaca &ldquo;coba baca&rdquo; sebelum daftar.{' '}
+                <strong>Isi 0 = SEMUA Chapter gratis</strong> (bukan &ldquo;nol Chapter gratis&rdquo;). Penulis bisa override nilai ini per-Book (harus 0 atau lebih besar dari nilai di sini).
               </p>
 
               <div className="flex items-start gap-2 pt-3">
-                <input
-                  type="checkbox"
-                  id="showBookStatus"
-                  checked={form.showBookStatus}
-                  onChange={(e) => updateField('showBookStatus', e.target.checked)}
-                  className="mt-1"
-                />
+                <input type="checkbox" id="showBookStatus" checked={form.showBookStatus} onChange={(e) => updateField('showBookStatus', e.target.checked)} className="mt-1" />
                 <div>
                   <Label htmlFor="showBookStatus">Tampilkan Status Cerita</Label>
                   <p className="text-xs text-muted-foreground">
-                    Tampilkan badge status (Draft/Berlanjut/Tamat) di katalog, profil Library, dan detail
-                    Book yang dilihat pembaca. Nonaktifkan kalau tidak ingin status ini terlihat publik —
-                    penulis di Studio tetap bisa melihat & mengubah status seperti biasa.
+                    Tampilkan badge status (Draft/Berlanjut/Tamat) di katalog, profil Library, dan detail Book yang dilihat pembaca. Nonaktifkan kalau tidak ingin status ini terlihat publik — penulis
+                    di Studio tetap bisa melihat & mengubah status seperti biasa.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 pt-3">
+                <input type="checkbox" id="enableDisclaimer" checked={form.enableDisclaimer} onChange={(e) => updateField('enableDisclaimer', e.target.checked)} className="mt-1" />
+                <div>
+                  <Label htmlFor="enableDisclaimer">Tampilkan Disclaimer</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Tampilkan atau sembunyikan disclaimer di halaman detail Book publik pada Platform ini. Template disclaimer yang sudah dipilih tetap tersimpan dan akan tampil kembali saat fitur
+                    diaktifkan.
                   </p>
                 </div>
               </div>
 
               <div className="space-y-1.5 pt-3">
                 <Label htmlFor="maxTagsPerBook">Maximum Tag per Book</Label>
-                <Input
-                  id="maxTagsPerBook"
-                  type="number"
-                  min={0}
-                  value={form.maxTagsPerBook}
-                  onChange={(e) => updateField('maxTagsPerBook', e.target.value)}
-                  className="max-w-[160px]"
-                />
+                <Input id="maxTagsPerBook" type="number" min={0} value={form.maxTagsPerBook} onChange={(e) => updateField('maxTagsPerBook', e.target.value)} className="max-w-[160px]" />
                 <p className="text-xs text-muted-foreground">
-                  batas jumlah Tag bebas yang boleh dilekatkan penulis ke satu Book (autocomplete
-                  Tag dari yang sudah pernah dipakai penulis lain di Platform ini).
+                  batas jumlah Tag bebas yang boleh dilekatkan penulis ke satu Book (autocomplete Tag dari yang sudah pernah dipakai penulis lain di Platform ini).
                 </p>
               </div>
 
               <div className="space-y-3 pt-3">
                 <div className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    id="enableRating"
-                    checked={form.enableRating}
-                    onChange={(e) => updateField('enableRating', e.target.checked)}
-                    className="mt-1"
-                  />
+                  <input type="checkbox" id="enableRating" checked={form.enableRating} onChange={(e) => updateField('enableRating', e.target.checked)} className="mt-1" />
                   <div>
                     <Label htmlFor="enableRating">Aktifkan Rating</Label>
                     <p className="text-xs text-muted-foreground">
-                      Izinkan pembaca yang login memberi rating 1-5 bintang. Nonaktifkan untuk
-                      sembunyikan seluruh tampilan rating dari halaman publik — data lama tetap
-                      tersimpan, muncul lagi begitu dinyalakan ulang.
+                      Izinkan pembaca yang login memberi rating 1-5 bintang. Nonaktifkan untuk sembunyikan seluruh tampilan rating dari halaman publik — data lama tetap tersimpan, muncul lagi begitu
+                      dinyalakan ulang.
                     </p>
                   </div>
                 </div>
@@ -949,71 +942,43 @@ export default function PlatformSettingsPage() {
                       <option value="chapter">Per Chapter (tiap Chapter dirating terpisah)</option>
                     </select>
                     <p className="text-xs text-muted-foreground">
-                      <strong>Per Book</strong>: pembaca kasih satu rating untuk keseluruhan Book.{' '}
-                      <strong>Per Chapter</strong>: pembaca kasih rating tiap Chapter yang dibaca —
-                      lebih akuntabel karena kualitas naskah bisa berubah di chapter-chapter
-                      berikutnya. Di kedua mode, halaman detail Book tetap menampilkan satu angka
-                      rating gabungan. Mengganti mode TIDAK menghapus data rating mode sebelumnya
-                      (tetap tersimpan, berhenti menerima rating baru sampai mode diganti balik).
+                      <strong>Per Book</strong>: pembaca kasih satu rating untuk keseluruhan Book. <strong>Per Chapter</strong>: pembaca kasih rating tiap Chapter yang dibaca — lebih akuntabel karena
+                      kualitas naskah bisa berubah di chapter-chapter berikutnya. Di kedua mode, halaman detail Book tetap menampilkan satu angka rating gabungan. Mengganti mode TIDAK menghapus data
+                      rating mode sebelumnya (tetap tersimpan, berhenti menerima rating baru sampai mode diganti balik).
                     </p>
                   </div>
                 )}
               </div>
 
               <div className="space-y-3 pt-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Engagement Bar (Fase 8) — tombol di halaman baca Chapter, gaya TikTok/Shorts.
-                </p>
+                <p className="text-xs font-medium text-muted-foreground">Engagement Bar (Fase 8) — tombol di halaman baca Chapter, gaya TikTok/Shorts.</p>
 
                 <div className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    id="enableLike"
-                    checked={form.enableLike}
-                    onChange={(e) => updateField('enableLike', e.target.checked)}
-                    className="mt-1"
-                  />
+                  <input type="checkbox" id="enableLike" checked={form.enableLike} onChange={(e) => updateField('enableLike', e.target.checked)} className="mt-1" />
                   <div>
                     <Label htmlFor="enableLike">Aktifkan Like</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Tombol Like (sekali-tap, terpisah dari Rating bintang di atas) di halaman baca
-                      Chapter. Wajib login untuk like.
-                    </p>
+                    <p className="text-xs text-muted-foreground">Tombol Like (sekali-tap, terpisah dari Rating bintang di atas) di halaman baca Chapter. Wajib login untuk like.</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    id="enableComment"
-                    checked={form.enableComment}
-                    onChange={(e) => updateField('enableComment', e.target.checked)}
-                    className="mt-1"
-                  />
+                  <input type="checkbox" id="enableComment" checked={form.enableComment} onChange={(e) => updateField('enableComment', e.target.checked)} className="mt-1" />
                   <div>
                     <Label htmlFor="enableComment">Aktifkan Comment</Label>
                     <p className="text-xs text-muted-foreground">
-                      Tombol Comment di halaman baca Chapter. Fase 8 ini masih tampilan mock (belum
-                      terhubung percakapan sungguhan) sambil menunggu Bagdja Chat Service selesai.
+                      Tombol Comment di halaman baca Chapter. Fase 8 ini masih tampilan mock (belum terhubung percakapan sungguhan) sambil menunggu Bagdja Chat Service selesai.
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    id="enableShare"
-                    checked={form.enableShare}
-                    onChange={(e) => updateField('enableShare', e.target.checked)}
-                    className="mt-1"
-                  />
+                  <input type="checkbox" id="enableShare" checked={form.enableShare} onChange={(e) => updateField('enableShare', e.target.checked)} className="mt-1" />
                   <div className="flex-1 space-y-2">
                     <div>
                       <Label htmlFor="enableShare">Aktifkan Share</Label>
                       <p className="text-xs text-muted-foreground">
-                        Tombol Share di halaman baca Chapter. Yang dibagikan adalah halaman preview
-                        (/book/&#123;slug&#125;/chapter/&#123;n&#125;/preview): paragraf pertama Chapter + tombol
-                        login untuk lanjut membaca — terbaca mesin pencari &amp; kartu sosmed.
+                        Tombol Share di halaman baca Chapter. Yang dibagikan adalah halaman preview (/book/&#123;slug&#125;/chapter/&#123;n&#125;/preview): paragraf pertama Chapter + tombol login
+                        untuk lanjut membaca — terbaca mesin pencari &amp; kartu sosmed.
                       </p>
                     </div>
                     <div className="max-w-xs space-y-1.5">
@@ -1026,16 +991,13 @@ export default function PlatformSettingsPage() {
                         value={form.chapterPreviewMaxChars}
                         onChange={(e) => updateField('chapterPreviewMaxChars', e.target.value)}
                       />
-                      <p className="text-xs text-muted-foreground">
-                        100–2000 karakter dari paragraf pertama (dipotong di batas kata). Default 400.
-                      </p>
+                      <p className="text-xs text-muted-foreground">100–2000 karakter dari paragraf pertama (dipotong di batas kata). Default 400.</p>
                     </div>
                   </div>
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  Kalau Like, Comment, dan Share ketiganya dinonaktifkan, seluruh bar disembunyikan
-                  total di halaman baca (tidak ada elemen lain yang dipertahankan sendirian).
+                  Kalau Like, Comment, dan Share ketiganya dinonaktifkan, seluruh bar disembunyikan total di halaman baca (tidak ada elemen lain yang dipertahankan sendirian).
                 </p>
               </div>
             </div>
@@ -1044,25 +1006,17 @@ export default function PlatformSettingsPage() {
               <div>
                 <Label>Perlindungan konten</Label>
                 <p className="text-xs text-muted-foreground">
-                  Berlaku di isi Chapter pada halaman baca. Ini penghalang ringan untuk pembaca biasa —
-                  screenshot, view source, atau scraper tetap tidak bisa dicegah sepenuhnya. Seleksi teks
-                  tetap aktif supaya fitur highlight berjalan.
+                  Berlaku di isi Chapter pada halaman baca. Ini penghalang ringan untuk pembaca biasa — screenshot, view source, atau scraper tetap tidak bisa dicegah sepenuhnya. Seleksi teks tetap
+                  aktif supaya fitur highlight berjalan.
                 </p>
               </div>
 
               <div className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  id="blockContentCopy"
-                  checked={form.blockContentCopy}
-                  onChange={(e) => updateField('blockContentCopy', e.target.checked)}
-                  className="mt-1"
-                />
+                <input type="checkbox" id="blockContentCopy" checked={form.blockContentCopy} onChange={(e) => updateField('blockContentCopy', e.target.checked)} className="mt-1" />
                 <div>
                   <Label htmlFor="blockContentCopy">Blok klik kanan &amp; salin</Label>
                   <p className="text-xs text-muted-foreground">
-                    Menu klik kanan dan aksi salin/potong (Ctrl/Cmd+C, menu Salin) di isi Chapter
-                    tidak menghasilkan apa pun. Bila aktif, atribusi di bawah tidak dipakai.
+                    Menu klik kanan dan aksi salin/potong (Ctrl/Cmd+C, menu Salin) di isi Chapter tidak menghasilkan apa pun. Bila aktif, atribusi di bawah tidak dipakai.
                   </p>
                 </div>
               </div>
@@ -1080,8 +1034,7 @@ export default function PlatformSettingsPage() {
                   <div>
                     <Label htmlFor="copyAttributionEnabled">Atribusi saat menyalin</Label>
                     <p className="text-xs text-muted-foreground">
-                      Teks yang disalin hanya berupa potongan, ditambah &ldquo;Baca selengkapnya&rdquo; dan
-                      tautan ke Chapter — kutipan yang beredar jadi promosi.
+                      Teks yang disalin hanya berupa potongan, ditambah &ldquo;Baca selengkapnya&rdquo; dan tautan ke Chapter — kutipan yang beredar jadi promosi.
                     </p>
                   </div>
                   {form.copyAttributionEnabled && !form.blockContentCopy && (
@@ -1110,22 +1063,66 @@ export default function PlatformSettingsPage() {
                 </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <SeoTemplateField id="seoDefaultH1" label="Default H1" value={form.seoDefaultH1} onChange={(value) => updateField('seoDefaultH1', value)} placeholder="{{title}}" />
-                <SeoTemplateField id="seoDefaultTitle" label="Default Title" value={form.seoDefaultTitle} onChange={(value) => updateField('seoDefaultTitle', value)} placeholder="{{title}} — {{platform}}" />
-                <div className="sm:col-span-2">
-                  <SeoTemplateField id="seoDefaultDescription" label="Default Description" value={form.seoDefaultDescription} onChange={(value) => updateField('seoDefaultDescription', value)} placeholder="Baca {{title}} di {{platform}}." multiline />
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="seoSiteTitleSuffix">Akhiran judul situs (SEO)</Label>
+                  <Input
+                    id="seoSiteTitleSuffix"
+                    value={form.seoSiteTitleSuffix}
+                    onChange={(e) => updateField('seoSiteTitleSuffix', e.target.value)}
+                    placeholder="Baca & Tulis Cerita"
+                    maxLength={255}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Ditampilkan setelah nama Platform pada judul tab beranda. Kosongkan jika tidak ingin menampilkan akhiran.
+                  </p>
                 </div>
-                <SeoTemplateField id="seoDefaultOgTitle" label="Default OG Title" value={form.seoDefaultOgTitle} onChange={(value) => updateField('seoDefaultOgTitle', value)} placeholder="Kosongkan untuk memakai title" />
+                <SeoTemplateField id="seoDefaultH1" label="Default H1" value={form.seoDefaultH1} onChange={(value) => updateField('seoDefaultH1', value)} placeholder="{{title}}" />
+                <SeoTemplateField
+                  id="seoDefaultTitle"
+                  label="Default Title"
+                  value={form.seoDefaultTitle}
+                  onChange={(value) => updateField('seoDefaultTitle', value)}
+                  placeholder="{{title}} — {{platform}}"
+                />
+                <div className="sm:col-span-2">
+                  <SeoTemplateField
+                    id="seoDefaultDescription"
+                    label="Default Description"
+                    value={form.seoDefaultDescription}
+                    onChange={(value) => updateField('seoDefaultDescription', value)}
+                    placeholder="Baca {{title}} di {{platform}}."
+                    multiline
+                  />
+                </div>
+                <SeoTemplateField
+                  id="seoDefaultOgTitle"
+                  label="Default OG Title"
+                  value={form.seoDefaultOgTitle}
+                  onChange={(value) => updateField('seoDefaultOgTitle', value)}
+                  placeholder="Kosongkan untuk memakai title"
+                />
                 <div className="space-y-1.5">
                   <Label htmlFor="seoDefaultOgType">Default OG Type</Label>
-                  <select id="seoDefaultOgType" value={form.seoDefaultOgType} onChange={(e) => updateField('seoDefaultOgType', e.target.value as FormState['seoDefaultOgType'])} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm">
+                  <select
+                    id="seoDefaultOgType"
+                    value={form.seoDefaultOgType}
+                    onChange={(e) => updateField('seoDefaultOgType', e.target.value as FormState['seoDefaultOgType'])}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                  >
                     <option value="website">website</option>
                     <option value="book">book</option>
                     <option value="profile">profile</option>
                   </select>
                 </div>
                 <div className="sm:col-span-2">
-                  <SeoTemplateField id="seoDefaultOgDescription" label="Default OG Description" value={form.seoDefaultOgDescription} onChange={(value) => updateField('seoDefaultOgDescription', value)} placeholder="Kosongkan untuk memakai description" multiline />
+                  <SeoTemplateField
+                    id="seoDefaultOgDescription"
+                    label="Default OG Description"
+                    value={form.seoDefaultOgDescription}
+                    onChange={(value) => updateField('seoDefaultOgDescription', value)}
+                    placeholder="Kosongkan untuk memakai description"
+                    multiline
+                  />
                 </div>
                 <SeoTemplateField id="seoPrefix" label="Prefix" value={form.seoPrefix} onChange={(value) => updateField('seoPrefix', value)} placeholder="Bagdja" />
                 <SeoTemplateField id="seoSuffix" label="Suffix" value={form.seoSuffix} onChange={(value) => updateField('seoSuffix', value)} placeholder="Bookpedia" />
@@ -1139,18 +1136,15 @@ export default function PlatformSettingsPage() {
                   Konten ini tampil di halaman publik khusus Platform ini. HTML didukung, misalnya &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;, dan &lt;a&gt;.
                 </p>
               </div>
-              <TermsAndConditionsEditor
-                value={form.termsAndConditions}
-                onChange={(value) => updateField('termsAndConditions', value)}
-                disabled={submitting}
-              />
+              <TermsAndConditionsEditor value={form.termsAndConditions} onChange={(value) => updateField('termsAndConditions', value)} disabled={submitting} />
             </div>
 
             <div className="space-y-3 border-t pt-4">
               <div>
                 <Label htmlFor="privacyPolicy">Kebijakan Privasi</Label>
                 <p className="text-xs text-muted-foreground">
-                  Tampil di halaman publik /privacy-policy. Wajib untuk Google Play Store — daftarkan URL di bawah pada Play Console (App content &rarr; Privacy policy). HTML didukung seperti Terms &amp; Conditions.
+                  Tampil di halaman publik /privacy-policy. Wajib untuk Google Play Store — daftarkan URL di bawah pada Play Console (App content &rarr; Privacy policy). HTML didukung seperti Terms
+                  &amp; Conditions.
                 </p>
                 {privacyPolicyUrl && (
                   <div className="mt-2 flex items-center gap-2">
@@ -1161,12 +1155,7 @@ export default function PlatformSettingsPage() {
                   </div>
                 )}
               </div>
-              <TermsAndConditionsEditor
-                value={form.privacyPolicy}
-                onChange={(value) => updateField('privacyPolicy', value)}
-                disabled={submitting}
-                toolbarLabel="Format konten Kebijakan Privasi"
-              />
+              <TermsAndConditionsEditor value={form.privacyPolicy} onChange={(value) => updateField('privacyPolicy', value)} disabled={submitting} toolbarLabel="Format konten Kebijakan Privasi" />
             </div>
 
             <div className="space-y-3 border-t pt-4">
@@ -1174,16 +1163,21 @@ export default function PlatformSettingsPage() {
                 <div>
                   <Label>Template Disclaimer</Label>
                   <p className="text-xs text-muted-foreground">
-                    Template disclaimer yang bisa dipilih penulis saat membuat/mengedit Book. Tampil di halaman
-                    detail Book (di bawah sinopsis, di atas tombol aksi) sebagai "sesion disclaimer". Template yang
-                    ditandai default akan tampil otomatis kalau Book tidak memilih template sendiri.
+                    Template disclaimer yang bisa dipilih penulis saat membuat/mengedit Book. Tampil di halaman detail Book (di bawah sinopsis, di atas tombol aksi) sebagai "sesion disclaimer".
+                    Template yang ditandai default akan tampil otomatis kalau Book tidak memilih template sendiri.
                   </p>
                 </div>
                 {!editingTemplateId && (
-                  <Button type="button" variant="outline" size="sm" onClick={() => {
-                    setEditingTemplateId('new');
-                    setTemplateForm({ nama: '', content: '', isActive: true, isDefault: false });
-                  }} disabled={submitting || templateSubmitting}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditingTemplateId('new');
+                      setTemplateForm({ nama: '', content: '', isActive: true, isDefault: false });
+                    }}
+                    disabled={submitting || templateSubmitting}
+                  >
                     + Tambah Template
                   </Button>
                 )}
@@ -1239,9 +1233,7 @@ export default function PlatformSettingsPage() {
                       />
                       <div>
                         <Label htmlFor="dt-is-default">Template default Platform</Label>
-                        <p className="text-[10px] text-[var(--reader-muted)]">
-                          Hanya satu default per Platform — tampil kalau Book tidak memilih template sendiri.
-                        </p>
+                        <p className="text-[10px] text-[var(--reader-muted)]">Hanya satu default per Platform — tampil kalau Book tidak memilih template sendiri.</p>
                       </div>
                     </div>
                   </div>
@@ -1290,11 +1282,11 @@ export default function PlatformSettingsPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-3 py-2 text-xs text-muted-foreground truncate max-w-[200px]">
-                            {t.content}
-                          </td>
+                          <td className="px-3 py-2 text-xs text-muted-foreground truncate max-w-[200px]">{t.content}</td>
                           <td className="px-3 py-2 text-center">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${t.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${t.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}
+                            >
                               {t.isActive ? 'Aktif' : 'Nonaktif'}
                             </span>
                           </td>
@@ -1339,15 +1331,9 @@ export default function PlatformSettingsPage() {
             <div className="space-y-3 border-t pt-4">
               <div>
                 <Label>Tipografi bacaan</Label>
-                <p className="text-xs text-muted-foreground">
-                  Font, ukuran, jarak baris, jarak paragraf, dan indentasi untuk teks yang dibaca di Platform ini.
-                </p>
+                <p className="text-xs text-muted-foreground">Font, ukuran, jarak baris, jarak paragraf, dan indentasi untuk teks yang dibaca di Platform ini.</p>
               </div>
-              <ReadingTypographySettings
-                value={form.readingTypography}
-                onChange={(value) => updateField('readingTypography', value)}
-                disabled={submitting}
-              />
+              <ReadingTypographySettings value={form.readingTypography} onChange={(value) => updateField('readingTypography', value)} disabled={submitting} />
             </div>
 
             <div className="space-y-4 border-t pt-4">
@@ -1362,10 +1348,7 @@ export default function PlatformSettingsPage() {
                   id="ad-border-color"
                   type="color"
                   value={form.adSlots.borderColor}
-                  onChange={(event) => setForm((prev) => ({
-                    ...prev,
-                    adSlots: { ...prev.adSlots, borderColor: event.target.value },
-                  }))}
+                  onChange={(event) => setForm((prev) => ({ ...prev, adSlots: { ...prev.adSlots, borderColor: event.target.value } }))}
                   disabled={submitting}
                   className="h-10 w-14 cursor-pointer p-1"
                   aria-label="Warna border iklan"
@@ -1406,51 +1389,108 @@ export default function PlatformSettingsPage() {
             <div className="space-y-3 border-t pt-4">
               <div>
                 <Label>Kontak</Label>
-                <p className="text-xs text-muted-foreground">
-                  Tampil di halaman publik /contact (tautan &ldquo;Kontak&rdquo; di footer). Kolom yang dikosongkan tidak ditampilkan.
-                </p>
+                <p className="text-xs text-muted-foreground">Tampil di halaman publik /contact (tautan &ldquo;Kontak&rdquo; di footer). Kolom yang dikosongkan tidak ditampilkan.</p>
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="contactPhone">No. telepon</Label>
-                  <Input
-                    id="contactPhone"
-                    type="tel"
-                    value={form.contactPhone}
-                    onChange={(e) => updateField('contactPhone', e.target.value)}
-                    placeholder="+62 21 555 0123"
-                  />
+                  <Input id="contactPhone" type="tel" value={form.contactPhone} onChange={(e) => updateField('contactPhone', e.target.value)} placeholder="+62 21 555 0123" />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="contactWhatsapp">No. WhatsApp</Label>
-                  <Input
-                    id="contactWhatsapp"
-                    type="tel"
-                    value={form.contactWhatsapp}
-                    onChange={(e) => updateField('contactWhatsapp', e.target.value)}
-                    placeholder="0812 3456 7890"
-                  />
+                  <Input id="contactWhatsapp" type="tel" value={form.contactWhatsapp} onChange={(e) => updateField('contactWhatsapp', e.target.value)} placeholder="0812 3456 7890" />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="contactEmail">Email</Label>
-                  <Input
-                    id="contactEmail"
-                    type="email"
-                    value={form.contactEmail}
-                    onChange={(e) => updateField('contactEmail', e.target.value)}
-                    placeholder="halo@novello.id"
-                  />
+                  <Input id="contactEmail" type="email" value={form.contactEmail} onChange={(e) => updateField('contactEmail', e.target.value)} placeholder="halo@novello.id" />
                 </div>
               </div>
             </div>
+
+            {!isCreating && isOwner && (
+              <div className="space-y-4 border-t pt-4">
+                <div>
+                  <Label>Wallet penerima donasi Platform</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Siapkan wallet IDR organisasi tanpa mengubah tujuan donasi. Untuk menerima donasi ke wallet ini, tautkan secara terpisah di bawah.
+                  </p>
+                </div>
+                {ownerWalletLoading ? (
+                  <p className="text-sm text-muted-foreground">Memuat organisasi dan wallet…</p>
+                ) : (
+                  <>
+                    {ownerOrganizationSlug && (
+                      <p className="text-xs text-muted-foreground">
+                        Organisasi tenant:{' '}
+                        {ownerWalletSettings?.organizations.find((organization) => organization.orgId === ownerOrganizationSlug)?.name ??
+                          ownerOrganizationSlug}
+                      </p>
+                    )}
+                    {ownerWalletSettings?.walletError && (
+                      <p
+                        role="alert"
+                        className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+                      >
+                        {ownerWalletSettings.walletError}
+                      </p>
+                    )}
+                    {ownerWalletSettings?.ownerWalletId ? (
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">
+                            {ownerWalletSettings.walletError ? 'Wallet tertaut saat ini' : 'Wallet penerima donasi'}
+                          </p>
+                          {ownerWalletSettings.selectedOrgSlug && (
+                            <p className="text-xs text-muted-foreground">
+                              Organisasi:{' '}
+                              {ownerWalletSettings.organizations.find((organization) => organization.orgId === ownerWalletSettings.selectedOrgSlug)?.name ?? ownerWalletSettings.selectedOrgSlug}
+                            </p>
+                          )}
+                          <p className="break-all font-mono text-xs text-muted-foreground">{ownerWalletSettings.ownerWalletId}</p>
+                        </div>
+                        <Button type="button" variant="outline" size="sm" onClick={handleClearOwnerWallet} disabled={ownerWalletSubmitting}>
+                          Lepaskan wallet
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Belum ada wallet penerima yang ditautkan.</p>
+                    )}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleInitializeOwnerWallet}
+                      disabled={!ownerOrganizationSlug || ownerWalletSubmitting || initializingOwnerWallet}
+                    >
+                      {initializingOwnerWallet ? 'Menyiapkan wallet…' : 'Inisialisasi wallet IDR'}
+                    </Button>
+
+                    {initializedOwnerWallet?.platformId === selectedPlatform.id && (
+                      <p role="status" className="break-all rounded-md border p-3 text-xs text-muted-foreground">
+                        Wallet IDR organisasi siap digunakan ({initializedOwnerWallet.wallet.currencyCode}):{' '}
+                        <span className="font-mono">{initializedOwnerWallet.wallet.walletId}</span>
+                      </p>
+                    )}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAssignOwnerWallet}
+                      disabled={!ownerOrganizationSlug || ownerWalletSubmitting || initializingOwnerWallet}
+                    >
+                      {ownerWalletSubmitting ? 'Menyimpan…' : 'Buat dan tautkan untuk donasi'}
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
 
             {!isCreating && (
               <div className="space-y-3 border-t pt-4">
                 <div>
                   <Label>Verifikasi Google Search Console</Label>
                   <p className="text-xs text-muted-foreground">
-                    Metode &ldquo;HTML file&rdquo; dari Search Console — paste nama file & isinya persis dari
-                    Google. Dibalas otomatis oleh app di domain manapun (subdomain atau custom domain) yang
+                    Metode &ldquo;HTML file&rdquo; dari Search Console — paste nama file & isinya persis dari Google. Dibalas otomatis oleh app di domain manapun (subdomain atau custom domain) yang
                     resolve ke Platform ini.
                   </p>
                 </div>
@@ -1483,11 +1523,9 @@ export default function PlatformSettingsPage() {
                 <div>
                   <Label>Android App Links (TWA)</Label>
                   <p className="text-xs text-muted-foreground">
-                    Dibalas otomatis di <span className="font-mono">/.well-known/assetlinks.json</span> pada domain
-                    manapun yang resolve ke Platform ini. Wajib supaya app TWA tampil layar penuh tanpa URL bar.
-                    Package name dan SHA-256 dari setiap build sukses di Platform Build terisi otomatis. Yang perlu
-                    ditambahkan manual hanya &ldquo;App signing key certificate&rdquo; dari Play Console (Setup &rarr; App
-                    signing) setelah app diunggah ke Play Store.
+                    Dibalas otomatis di <span className="font-mono">/.well-known/assetlinks.json</span> pada domain manapun yang resolve ke Platform ini. Wajib supaya app TWA tampil layar penuh tanpa
+                    URL bar. Package name dan SHA-256 dari setiap build sukses di Platform Build terisi otomatis. Yang perlu ditambahkan manual hanya &ldquo;App signing key certificate&rdquo; dari
+                    Play Console (Setup &rarr; App signing) setelah app diunggah ke Play Store.
                   </p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -1500,9 +1538,7 @@ export default function PlatformSettingsPage() {
                       onChange={(e) => updateField('playStoreUrl', e.target.value)}
                       placeholder="https://play.google.com/store/apps/details?id=com.bagdja.novello"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Jika diisi, link download akan tampil di footer reader app.
-                    </p>
+                    <p className="text-xs text-muted-foreground">Jika diisi, link download akan tampil di footer reader app.</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="androidPackageName">Package Name</Label>
@@ -1548,30 +1584,16 @@ export default function PlatformSettingsPage() {
         <Card className="mt-6">
           <CardHeader>
             <CardTitle>Domain Kustom</CardTitle>
-            <CardDescription>
-              Domain milik Anda sendiri untuk Platform ini (mis. teknobuku.com). Isi lalu klik
-              &ldquo;Simpan &amp; Verifikasi&rdquo;.
-            </CardDescription>
+            <CardDescription>Domain milik Anda sendiri untuk Platform ini (mis. teknobuku.com). Isi lalu klik &ldquo;Simpan &amp; Verifikasi&rdquo;.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
               <div className="flex-1 space-y-1.5">
                 <Label htmlFor="domain">Domain</Label>
-                <Input
-                  id="domain"
-                  value={domainInput}
-                  onChange={(e) => setDomainInput(e.target.value)}
-                  placeholder="teknobuku.com"
-                  disabled={Boolean(savedDomain)}
-                />
+                <Input id="domain" value={domainInput} onChange={(e) => setDomainInput(e.target.value)} placeholder="teknobuku.com" disabled={Boolean(savedDomain)} />
               </div>
               {!savedDomain && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={!domainInput.trim() || submitting}
-                  onClick={handleSaveDomain}
-                >
+                <Button type="button" variant="outline" disabled={!domainInput.trim() || submitting} onClick={handleSaveDomain}>
                   {submitting ? 'Menyimpan…' : 'Simpan & Verifikasi'}
                 </Button>
               )}
@@ -1582,32 +1604,16 @@ export default function PlatformSettingsPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{savedDomain}</span>
                   {selectedPlatform.domainVerifiedAt ? (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                      Terverifikasi
-                    </span>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">Terverifikasi</span>
                   ) : (
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                      Verifikasi Diperlukan
-                    </span>
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Verifikasi Diperlukan</span>
                   )}
                   <div className="ml-auto flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={checkingDomain}
-                      onClick={handleCheckDomain}
-                    >
+                    <Button type="button" variant="outline" size="sm" disabled={checkingDomain} onClick={handleCheckDomain}>
                       <RefreshCw className={`mr-1 h-4 w-4 ${checkingDomain ? 'animate-spin' : ''}`} />
                       {checkingDomain ? 'Memeriksa…' : 'Refresh'}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      disabled={removingDomain}
-                      onClick={handleRemoveDomain}
-                    >
+                    <Button type="button" variant="destructive" size="sm" disabled={removingDomain} onClick={handleRemoveDomain}>
                       {removingDomain ? 'Menghapus…' : 'Hapus'}
                     </Button>
                   </div>
@@ -1631,9 +1637,7 @@ export default function PlatformSettingsPage() {
                   </p>
                 )}
 
-                {verifyingDomain && !domainVerifyInfo && (
-                  <p className="text-sm text-muted-foreground">Memuat record DNS…</p>
-                )}
+                {verifyingDomain && !domainVerifyInfo && <p className="text-sm text-muted-foreground">Memuat record DNS…</p>}
 
                 {domainVerifyInfo && (
                   <>
@@ -1648,14 +1652,7 @@ export default function PlatformSettingsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          <DomainRecordRow
-                            type="TXT"
-                            name={domainVerifyInfo.recordName}
-                            value={domainVerifyInfo.recordValue}
-                            fieldKey="txt"
-                            copiedField={copiedField}
-                            onCopy={handleCopy}
-                          />
+                          <DomainRecordRow type="TXT" name={domainVerifyInfo.recordName} value={domainVerifyInfo.recordValue} fieldKey="txt" copiedField={copiedField} onCopy={handleCopy} />
                           <DomainRecordRow
                             type={domainVerifyInfo.dnsTarget.recordType}
                             name={domainVerifyInfo.dnsTarget.recordName}
@@ -1670,14 +1667,12 @@ export default function PlatformSettingsPage() {
                       </table>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Perubahan DNS bisa perlu beberapa menit untuk propagasi. Klik &ldquo;Refresh&rdquo; di
-                      atas untuk cek ulang setelah menambahkan record.
+                      Perubahan DNS bisa perlu beberapa menit untuk propagasi. Klik &ldquo;Refresh&rdquo; di atas untuk cek ulang setelah menambahkan record.
                     </p>
                     <div className="rounded-md border bg-muted/30 p-3 text-sm">
                       <p className="font-medium">Aktifkan HTTPS lewat Cloudflare Anda sendiri</p>
                       <p className="mt-1 text-muted-foreground">
-                        Daftarkan domain ini di akun Cloudflare Anda, aktifkan proxy (awan oranye), lalu set
-                        mode SSL/TLS ke &ldquo;Full&rdquo;. Cloudflare akan otomatis mengurus sertifikat HTTPS
+                        Daftarkan domain ini di akun Cloudflare Anda, aktifkan proxy (awan oranye), lalu set mode SSL/TLS ke &ldquo;Full&rdquo;. Cloudflare akan otomatis mengurus sertifikat HTTPS
                         untuk pengunjung Anda — bukan tanggung jawab kami.
                       </p>
                     </div>

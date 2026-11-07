@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, ChevronLeft, ChevronRight, LayoutDashboard, Library, PanelsTopLeft, Settings, Tag, UserRound, Users, X } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Heart, LayoutDashboard, Library, PanelsTopLeft, Settings, Tag, UserRound, Users, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { usePlatformContext } from '@/context/platform-context';
@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/homepage', label: 'Homepage', icon: PanelsTopLeft, ownerOnly: false },
   { href: '/dashboard/genres', label: 'Genres', icon: Library, ownerOnly: false },
   { href: '/dashboard/categories', label: 'Categories', icon: Tag, ownerOnly: false },
+  { href: '/dashboard/donations', label: 'Donasi Platform', icon: Heart, ownerOnly: false },
   { href: '/dashboard/users', label: 'Users', icon: UserRound, ownerOnly: false },
   { href: '/dashboard/staff', label: 'Staff', icon: Users, ownerOnly: true },
 ];

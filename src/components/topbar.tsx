@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -24,13 +25,28 @@ interface TopbarProps {
 export function Topbar({ onMenuToggle }: TopbarProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { platforms, activePlatform, switchPlatform, isOwner } = usePlatformContext();
+  const { platforms, activePlatform, switchPlatform, isOwner, canCreatePlatform } = usePlatformContext();
+  const platformGroups = Array.from(
+    platforms.reduce((groups, platform) => {
+      const key = platform.ownerOrgId ?? 'unassigned';
+      const group = groups.get(key) ?? {
+        id: key,
+        name: platform.ownerOrgName
+          || (platform.ownerOrgId ? `Organisasi ${platform.ownerOrgId.slice(0, 8)}` : 'Belum terhubung ke organisasi'),
+        platforms: [],
+      };
+      group.platforms.push(platform);
+      groups.set(key, group);
+      return groups;
+    }, new Map<string, { id: string; name: string; platforms: typeof platforms }>()),
+  ).map(([, group]) => group);
+  platformGroups.sort((a, b) => a.name.localeCompare(b.name, 'id'));
 
   const displayName = user?.username ?? user?.email ?? 'User';
   const initials = displayName.charAt(0).toUpperCase();
 
   const handleCreatePlatform = () => {
-    router.push('/dashboard/platform-settings?mode=create');
+    router.push('/dashboard/platforms/new');
   };
 
   return (
@@ -57,11 +73,9 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-64">
-            <DropdownMenuLabel>
-              {isOwner ? 'Semua Platform (Owner)' : 'Platform Anda'}
-            </DropdownMenuLabel>
+            <DropdownMenuLabel>Platform Anda</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {isOwner && (
+            {canCreatePlatform && (
               <>
                 <DropdownMenuItem onSelect={handleCreatePlatform} className="flex items-center gap-2">
                   <Plus className="h-4 w-4" />
@@ -75,19 +89,27 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
                 Belum ada Platform.
               </div>
             )}
-            {platforms.map((platform) => (
-              <DropdownMenuItem
-                key={platform.id}
-                onSelect={() => switchPlatform(platform.id)}
-                className="flex items-center justify-between"
-              >
-                <span className="truncate">{platform.nama}</span>
-                {activePlatform?.id === platform.id && (
-                  <Badge variant="secondary" className="ml-2 shrink-0">
-                    Aktif
-                  </Badge>
-                )}
-              </DropdownMenuItem>
+            {platformGroups.map((group, groupIndex) => (
+              <DropdownMenuGroup key={group.id}>
+                {groupIndex > 0 && <DropdownMenuSeparator />}
+                <DropdownMenuLabel className="max-w-full truncate text-xs text-muted-foreground">
+                  {group.name}
+                </DropdownMenuLabel>
+                {group.platforms.map((platform) => (
+                  <DropdownMenuItem
+                    key={platform.id}
+                    onSelect={() => switchPlatform(platform.id)}
+                    className="flex items-center justify-between"
+                  >
+                    <span className="truncate">{platform.nama}</span>
+                    {activePlatform?.id === platform.id && (
+                      <Badge variant="secondary" className="ml-2 shrink-0">
+                        Aktif
+                      </Badge>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
