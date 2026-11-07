@@ -223,6 +223,7 @@ export interface Platform {
   seoDefaultOgType: 'website' | 'book' | 'profile' | null;
   seoPrefix: string | null;
   seoSuffix: string | null;
+  aboutContent: string | null;
   termsAndConditions: string | null;
   privacyPolicy: string | null;
   /** Halaman Kontak (/contact) — kosong = baris tidak ditampilkan. */
@@ -375,6 +376,7 @@ export interface CreatePlatformPayload {
   seoDefaultOgType?: 'website' | 'book' | 'profile';
   seoPrefix?: string;
   seoSuffix?: string;
+  aboutContent?: string | null;
   termsAndConditions?: string;
   privacyPolicy?: string;
   contactPhone?: string | null;
@@ -448,6 +450,7 @@ export interface UpdatePlatformPayload {
   seoDefaultOgType?: 'website' | 'book' | 'profile' | null;
   seoPrefix?: string | null;
   seoSuffix?: string | null;
+  aboutContent?: string | null;
   termsAndConditions?: string | null;
   privacyPolicy?: string | null;
   contactPhone?: string | null;
