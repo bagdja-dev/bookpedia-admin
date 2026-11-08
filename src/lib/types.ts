@@ -37,6 +37,31 @@ export interface DonationSettingsResponse {
   recipientConfigured: boolean;
 }
 
+export interface PlatformDonation {
+  id: string;
+  status: string;
+  amount: number;
+  currency: string;
+  optionTitle: string;
+  donorName: string | null;
+  donorEmail: string | null;
+  createdAt: string;
+  paidAt: string | null;
+}
+
+export interface PlatformDonationListResponse {
+  items: PlatformDonation[];
+  total: number;
+  page: number;
+  limit: number;
+  summary: {
+    paidCount: number;
+    paidAmount: number;
+    uniqueDonorCount: number;
+    pendingCount: number;
+  };
+}
+
 export interface PlatformColors {
   bg: string;
   surface: string;
