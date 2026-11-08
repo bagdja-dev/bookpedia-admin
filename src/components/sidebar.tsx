@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, ChevronLeft, ChevronRight, Heart, LayoutDashboard, Library, PanelsTopLeft, Settings, Tag, UserRound, Users, X } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Heart, History, LayoutDashboard, Library, PanelsTopLeft, Settings, Tag, UserRound, Users, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { usePlatformContext } from '@/context/platform-context';
@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/genres', label: 'Genres', icon: Library, ownerOnly: false },
   { href: '/dashboard/categories', label: 'Categories', icon: Tag, ownerOnly: false },
   { href: '/dashboard/donations', label: 'Donasi Platform', icon: Heart, ownerOnly: false },
+  { href: '/dashboard/donations/history', label: 'Riwayat Donasi', icon: History, ownerOnly: false },
   { href: '/dashboard/users', label: 'Users', icon: UserRound, ownerOnly: false },
   { href: '/dashboard/staff', label: 'Staff', icon: Users, ownerOnly: true },
 ];
@@ -75,7 +76,9 @@ export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: Sideb
         <nav className="flex-1 space-y-1 px-3 py-4">
           {items.map((item) => {
             const Icon = item.icon;
-            const active = item.href === '/dashboard' ? pathname === item.href : pathname?.startsWith(item.href);
+            const active = item.href === '/dashboard' || item.href === '/dashboard/donations'
+              ? pathname === item.href
+              : pathname?.startsWith(item.href);
             return (
               <Link
                 key={item.href}
