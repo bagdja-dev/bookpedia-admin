@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { GripVertical, Pencil, Plus, Save, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, GripVertical, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { HomepageManualBooksEditor } from '@/components/homepage-manual-books-editor';
@@ -9,7 +9,9 @@ import { ImageUpload } from '@/components/image-upload';
 import { SeoTemplateField } from '@/components/seo-template-field';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { EmptyState } from '@/components/admin/empty-state';
+import { ErrorState } from '@/components/admin/error-state';
 import { PageHeader } from '@/components/admin/page-header';
+import { StatusBadge } from '@/components/admin/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -48,10 +50,17 @@ export default function HomepageSettingsPage() {
     sections: [],
   });
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
+  const [catalogOptionsError, setCatalogOptionsError] = useState<string | null>(null);
+  const [categoryOptionsFailed, setCategoryOptionsFailed] = useState(false);
+  const [genreOptionsFailed, setGenreOptionsFailed] = useState(false);
+  const [catalogOptionsLoading, setCatalogOptionsLoading] = useState(false);
+  const catalogOptionsRequest = useRef(0);
   /** Daftar Book section mode manual, per `section.key`; `dirty` = berubah dan disimpan saat Simpan. */
   const [manualBooks, setManualBooks] = useState<{
     platformId: string | null;
@@ -60,31 +69,49 @@ export default function HomepageSettingsPage() {
   }>({ platformId: null, lists: {}, dirty: [] });
   const [loadingManualKey, setLoadingManualKey] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadCatalogOptions = useCallback(async () => {
+    const requestId = ++catalogOptionsRequest.current;
     if (!activePlatform) {
+      setCategories([]);
+      setGenres([]);
+      setCatalogOptionsError(null);
+      setCategoryOptionsFailed(false);
+      setGenreOptionsFailed(false);
+      setCatalogOptionsLoading(false);
       return;
     }
-
-    let cancelled = false;
-    void Promise.all([
+    setCatalogOptionsLoading(true);
+    setCatalogOptionsError(null);
+    const results = await Promise.allSettled([
       apiClient<Category[]>(`/platforms/${activePlatform.id}/categories`),
       apiClient<Genre[]>(`/public/platforms/${activePlatform.slug}/genres`),
-    ]).then(([categoryData, genreData]) => {
-      if (!cancelled) {
-        setCategories(categoryData);
-        setGenres(genreData);
-      }
-    }).catch(() => {
-      if (!cancelled) {
-        setCategories([]);
-        setGenres([]);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
+    ]);
+    if (requestId !== catalogOptionsRequest.current) return;
+    const errors: string[] = [];
+    if (results[0].status === 'fulfilled') {
+      setCategories(results[0].value);
+      setCategoryOptionsFailed(false);
+    } else {
+      setCategoryOptionsFailed(true);
+      errors.push(results[0].reason instanceof ApiError ? results[0].reason.message : 'Daftar Category gagal dimuat.');
+    }
+    if (results[1].status === 'fulfilled') {
+      setGenres(results[1].value);
+      setGenreOptionsFailed(false);
+    } else {
+      setGenreOptionsFailed(true);
+      errors.push(results[1].reason instanceof ApiError ? results[1].reason.message : 'Daftar Genre gagal dimuat.');
+    }
+    setCatalogOptionsError(errors.length ? errors.join(' ') : null);
+    setCatalogOptionsLoading(false);
   }, [activePlatform]);
+
+  useEffect(() => {
+    void loadCatalogOptions();
+    return () => {
+      catalogOptionsRequest.current += 1;
+    };
+  }, [loadCatalogOptions]);
 
   if (loading) return <LoadingSpinner label="Memuat pengaturan homepage..." />;
 
@@ -116,6 +143,8 @@ export default function HomepageSettingsPage() {
 
   const manualLists = manualBooks.platformId === activePlatformId ? manualBooks.lists : {};
   const manualDirty = manualBooks.platformId === activePlatformId ? manualBooks.dirty : [];
+  const hasPendingChanges = JSON.stringify(sections) !== JSON.stringify(normalizeSections(activePlatform.homepageSections))
+    || manualDirty.length > 0;
 
   /** Muat daftar Book section manual yang sudah tersimpan (sekali per section). */
   async function ensureManualBooksLoaded(section: CatalogSectionConfig | undefined) {
@@ -212,7 +241,19 @@ export default function HomepageSettingsPage() {
 
   function removeSection(index: number) {
     if (editingIndex === index) setEditingIndex(null);
+    if (editingIndex !== null && editingIndex > index) setEditingIndex(editingIndex - 1);
     setSections((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    setPendingDeleteIndex(null);
+  }
+
+  function moveSection(index: number, direction: -1 | 1) {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= sections.length) return;
+    setSections((current) => {
+      const next = [...current];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next;
+    });
   }
 
   function dropSection(targetIndex: number) {
@@ -228,6 +269,7 @@ export default function HomepageSettingsPage() {
 
   async function save() {
     setSaving(true);
+    setSaveError(null);
     try {
       const payload: UpdatePlatformPayload = {
         // `previousSlugs` dikelola server (riwayat slug untuk redirect) — tidak dikirim.
@@ -254,7 +296,7 @@ export default function HomepageSettingsPage() {
       await refresh();
       toast.success('Pengaturan homepage berhasil disimpan.');
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : 'Gagal menyimpan pengaturan homepage.');
+      setSaveError(error instanceof ApiError ? error.message : 'Gagal menyimpan pengaturan homepage.');
     } finally {
       setSaving(false);
     }
@@ -267,11 +309,15 @@ export default function HomepageSettingsPage() {
         description={`Susun section katalog publik untuk ${activePlatform.nama}.`}
         actions={
           <>
+          <StatusBadge
+            label={saving ? 'Menyimpan' : hasPendingChanges ? 'Perubahan belum disimpan' : 'Tersimpan'}
+            tone={saving || hasPendingChanges ? 'warning' : 'success'}
+          />
           <Button type="button" variant="outline" onClick={addSection}>
             <Plus className="h-4 w-4" />
             Tambah section
           </Button>
-          <Button type="button" onClick={save} disabled={saving}>
+          <Button type="button" onClick={save} disabled={saving || !hasPendingChanges}>
             <Save className="h-4 w-4" />
             {saving ? 'Menyimpan...' : 'Simpan'}
           </Button>
@@ -279,9 +325,21 @@ export default function HomepageSettingsPage() {
         }
       />
 
+      {saveError && (
+        <ErrorState title="Pengaturan homepage gagal disimpan" description={saveError} onRetry={() => void save()} />
+      )}
+      {catalogOptionsError && (
+        <ErrorState
+          title="Sebagian sumber katalog belum tersedia"
+          description={`${catalogOptionsError} Pengaturan yang menggunakan filter Genre atau Category mungkin belum lengkap.`}
+          onRetry={() => void loadCatalogOptions()}
+        />
+      )}
+      {catalogOptionsLoading && <LoadingSpinner label="Memuat pilihan Genre dan Category…" />}
+
       <div className="space-y-4">
         {sections.length === 0 && (
-          <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">Belum ada section homepage.</CardContent></Card>
+          <EmptyState title="Belum ada section homepage" description="Tambahkan section untuk menentukan konten yang muncul di katalog publik." />
         )}
         {sections.map((section, index) => (
           <Card
@@ -310,7 +368,29 @@ export default function HomepageSettingsPage() {
                 <Pencil className="h-3.5 w-3.5" />
                 Edit
               </Button>
-              <Button type="button" variant="ghost" size="icon" title="Hapus section" aria-label="Hapus section" onClick={() => removeSection(index)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                title="Pindahkan ke atas"
+                aria-label={`Pindahkan ${section.title || `section ${index + 1}`} ke atas`}
+                disabled={index === 0}
+                onClick={() => moveSection(index, -1)}
+              >
+                <ArrowUp className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                title="Pindahkan ke bawah"
+                aria-label={`Pindahkan ${section.title || `section ${index + 1}`} ke bawah`}
+                disabled={index === sections.length - 1}
+                onClick={() => moveSection(index, 1)}
+              >
+                <ArrowDown className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="ghost" size="icon" title="Hapus section" aria-label={`Hapus ${section.title || `section ${index + 1}`}`} onClick={() => setPendingDeleteIndex(index)}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </CardHeader>
@@ -396,7 +476,9 @@ export default function HomepageSettingsPage() {
                       <Label>Category</Label>
                       <div className="max-h-36 space-y-2 overflow-y-auto rounded-md border p-3">
                         {categories.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">Belum ada category.</p>
+                          <p className="text-xs text-muted-foreground">
+                            {categoryOptionsFailed ? 'Daftar Category gagal dimuat.' : 'Belum ada category.'}
+                          </p>
                         ) : categories.map((category) => (
                           <label key={category.id} className="flex items-center gap-2 text-sm">
                             <input
@@ -413,7 +495,9 @@ export default function HomepageSettingsPage() {
                       <Label>Genre</Label>
                       <div className="max-h-36 space-y-2 overflow-y-auto rounded-md border p-3">
                         {genres.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">Belum ada genre.</p>
+                          <p className="text-xs text-muted-foreground">
+                            {genreOptionsFailed ? 'Daftar Genre gagal dimuat.' : 'Belum ada genre.'}
+                          </p>
                         ) : genres.map((genre) => (
                           <label key={genre.id} className="flex items-center gap-2 text-sm">
                             <input
@@ -592,6 +676,29 @@ export default function HomepageSettingsPage() {
             </DialogFooter>
           </DialogContent>
         )}
+      </Dialog>
+
+      <Dialog open={pendingDeleteIndex !== null} onOpenChange={(open) => !open && setPendingDeleteIndex(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus section homepage?</DialogTitle>
+            <DialogDescription>
+              {pendingDeleteIndex !== null
+                ? `Section “${sections[pendingDeleteIndex]?.title || `Section ${pendingDeleteIndex + 1}`}” akan dihapus setelah perubahan disimpan. Daftar Book manual yang tidak lagi dipakai tidak ikut dihapus dari katalog.`
+                : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPendingDeleteIndex(null)}>Batal</Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => pendingDeleteIndex !== null && removeSection(pendingDeleteIndex)}
+            >
+              Hapus section
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </div>
   );

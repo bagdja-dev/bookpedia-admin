@@ -21,7 +21,7 @@ import {
 
 import { cn } from '@/lib/utils';
 import { usePlatformContext } from '@/context/platform-context';
-import { PLATFORM_SETTINGS_NAV_ITEMS, platformSettingsPath } from '@/lib/platform-settings-navigation';
+import { PLATFORM_SETTINGS_NAV_GROUPS, PLATFORM_SETTINGS_NAV_ITEMS, platformSettingsPath } from '@/lib/platform-settings-navigation';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -41,6 +41,11 @@ interface NavGroup {
   id: string;
   label: string;
   items: NavItem[];
+  subgroups?: {
+    id: string;
+    label: string;
+    items: NavItem[];
+  }[];
 }
 
 const NAV_GROUPS: NavGroup[] = [
@@ -79,6 +84,16 @@ const NAV_GROUPS: NavGroup[] = [
       label: item.label,
       icon: item.icon,
       ...('ownerOnly' in item ? { ownerOnly: item.ownerOnly } : {}),
+    })),
+    subgroups: PLATFORM_SETTINGS_NAV_GROUPS.map((group) => ({
+      id: group.id,
+      label: group.label,
+      items: group.items.map((item) => ({
+        href: platformSettingsPath(item.section),
+        label: item.label,
+        icon: item.icon,
+        ...('ownerOnly' in item ? { ownerOnly: item.ownerOnly } : {}),
+      })),
     })),
   },
   {
@@ -124,6 +139,31 @@ export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: Sideb
     });
   }
 
+  function renderNavItem(item: NavItem) {
+    const Icon = item.icon;
+    const active = isItemActive(pathname, item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={onClose}
+        title={collapsed ? item.label : undefined}
+        aria-label={item.label}
+        aria-current={active ? 'page' : undefined}
+        className={cn(
+          'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar',
+          collapsed && 'lg:justify-center lg:px-2',
+          active
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+            : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground',
+        )}
+      >
+        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span className={cn(collapsed && 'lg:hidden')}>{item.label}</span>
+      </Link>
+    );
+  }
+
   return (
     <>
       {isOpen && (
@@ -163,6 +203,10 @@ export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: Sideb
             const visibleItems = group.items.filter((item) => (
               !item.ownerOnly || isOwner
             ));
+            const visibleSubgroups = group.subgroups?.map((subgroup) => ({
+              ...subgroup,
+              items: subgroup.items.filter((item) => !item.ownerOnly || isOwner),
+            })).filter((subgroup) => subgroup.items.length > 0);
             if (visibleItems.length === 0) return null;
 
             const isExpanded = expandedGroups.includes(group.id);
@@ -189,30 +233,19 @@ export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: Sideb
                     collapsed && 'lg:block',
                   )}
                 >
-                  {visibleItems.map((item) => {
-                    const Icon = item.icon;
-                    const active = isItemActive(pathname, item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={onClose}
-                        title={collapsed ? item.label : undefined}
-                        aria-label={item.label}
-                        aria-current={active ? 'page' : undefined}
-                        className={cn(
-                          'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar',
-                          collapsed && 'lg:justify-center lg:px-2',
-                          active
-                            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                            : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground',
-                        )}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span className={cn(collapsed && 'lg:hidden')}>{item.label}</span>
-                      </Link>
-                    );
-                  })}
+                  {visibleSubgroups
+                    ? visibleSubgroups.map((subgroup) => (
+                      <div key={subgroup.id} className="space-y-1">
+                        <p className={cn(
+                          'px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground',
+                          collapsed && 'lg:hidden',
+                        )}>
+                          {subgroup.label}
+                        </p>
+                        {subgroup.items.map(renderNavItem)}
+                      </div>
+                    ))
+                    : visibleItems.map(renderNavItem)}
                 </div>
               </section>
             );

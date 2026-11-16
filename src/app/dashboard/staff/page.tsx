@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Copy, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { EmptyState } from '@/components/admin/empty-state';
+import { ErrorState } from '@/components/admin/error-state';
+import { PageHeader } from '@/components/admin/page-header';
 import { usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient } from '@/lib/api-client';
 import type { PlatformStaff, PlatformStaffInvitationListItem } from '@/lib/types';
@@ -55,8 +58,10 @@ export default function StaffPage() {
 
   const [staff, setStaff] = useState<PlatformStaff[]>([]);
   const [staffLoading, setStaffLoading] = useState(false);
+  const [staffError, setStaffError] = useState<string | null>(null);
   const [invitations, setInvitations] = useState<PlatformStaffInvitationListItem[]>([]);
   const [invitationsLoading, setInvitationsLoading] = useState(false);
+  const [invitationsError, setInvitationsError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [inviting, setInviting] = useState(false);
   const [lastInviteToken, setLastInviteToken] = useState<string | null>(null);
@@ -69,11 +74,12 @@ export default function StaffPage() {
       return;
     }
     setStaffLoading(true);
+    setStaffError(null);
     try {
       const data = await apiClient<PlatformStaff[]>(`/platforms/${activePlatform.id}/staff`);
       setStaff(data);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Gagal memuat daftar staff.');
+      setStaffError(err instanceof ApiError ? err.message : 'Gagal memuat daftar staff.');
     } finally {
       setStaffLoading(false);
     }
@@ -85,13 +91,14 @@ export default function StaffPage() {
       return;
     }
     setInvitationsLoading(true);
+    setInvitationsError(null);
     try {
       const data = await apiClient<PlatformStaffInvitationListItem[]>(
         `/platforms/${activePlatform.id}/staff/invitations`,
       );
       setInvitations(data);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Gagal memuat daftar undangan.');
+      setInvitationsError(err instanceof ApiError ? err.message : 'Gagal memuat daftar undangan.');
     } finally {
       setInvitationsLoading(false);
     }
@@ -147,6 +154,16 @@ export default function StaffPage() {
     }
   }
 
+  async function copyInvitationLink() {
+    if (!lastInviteToken) return;
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/invite/accept?token=${lastInviteToken}`);
+      toast.success('Link undangan berhasil disalin.');
+    } catch {
+      toast.error('Link undangan gagal disalin. Salin tautan yang ditampilkan secara manual.');
+    }
+  }
+
   if (platformLoading) {
     return <LoadingSpinner label="Memuat…" />;
   }
@@ -179,6 +196,10 @@ export default function StaffPage() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Staff"
+        description={`Kelola akses tim untuk Platform ${activePlatform.nama}. Undangan dibagikan secara manual; tidak ada email otomatis.`}
+      />
       <Card>
         <CardHeader>
           <CardTitle>Undang Staff</CardTitle>
@@ -205,9 +226,14 @@ export default function StaffPage() {
           </form>
 
           {lastInviteToken && (
-            <div className="rounded-md border bg-muted/30 p-3 text-sm">
-              <p className="font-medium">Link accept (share manual ke calon staff)</p>
-              <code className="mt-1 block break-all text-xs text-muted-foreground">
+            <div role="status" className="rounded-md border bg-muted/30 p-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-medium">Link undangan — bagikan manual kepada calon staff</p>
+                <Button type="button" size="sm" variant="outline" onClick={() => void copyInvitationLink()}>
+                  <Copy className="mr-2 h-4 w-4" /> Salin link
+                </Button>
+              </div>
+              <code className="mt-2 block break-all text-xs text-muted-foreground">
                 {`${typeof window !== 'undefined' ? window.location.origin : ''}/invite/accept?token=${lastInviteToken}`}
               </code>
             </div>
@@ -222,8 +248,10 @@ export default function StaffPage() {
         <CardContent>
           {staffLoading ? (
             <LoadingSpinner />
+          ) : staffError ? (
+            <ErrorState title="Daftar staff gagal dimuat" description={staffError} onRetry={() => void loadStaff()} />
           ) : staff.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Belum ada staff terdaftar di Platform ini.</p>
+            <EmptyState title="Belum ada staff" description="Undang anggota tim melalui formulir di atas. Link penerimaan perlu dibagikan secara manual." />
           ) : (
             <Table>
               <TableHeader>
@@ -265,8 +293,10 @@ export default function StaffPage() {
         <CardContent>
           {invitationsLoading ? (
             <LoadingSpinner />
+          ) : invitationsError ? (
+            <ErrorState title="Daftar undangan gagal dimuat" description={invitationsError} onRetry={() => void loadInvitations()} />
           ) : invitations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Belum ada undangan yang dikirim.</p>
+            <EmptyState title="Tidak ada undangan tertunda" description="Undangan yang masih menunggu penerimaan atau sudah kedaluwarsa akan dicatat di sini." />
           ) : (
             <Table>
               <TableHeader>

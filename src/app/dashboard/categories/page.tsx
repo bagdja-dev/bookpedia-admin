@@ -18,15 +18,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { EmptyState } from '@/components/admin/empty-state';
+import { ErrorState } from '@/components/admin/error-state';
+import { PageHeader } from '@/components/admin/page-header';
 import { usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
 import type { AttachGenrePayload, Category, CreateCategoryPayload, Genre, UpdateCategoryPayload } from '@/lib/types';
@@ -43,7 +38,10 @@ export default function CategoriesPage() {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [genres, setGenres] = useState<Genre[]>([]);
+  const [genresLoading, setGenresLoading] = useState(false);
+  const [genresError, setGenresError] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
@@ -62,11 +60,12 @@ export default function CategoriesPage() {
       return;
     }
     setCategoriesLoading(true);
+    setCategoriesError(null);
     try {
       const data = await apiClient<Category[]>(`/platforms/${activePlatform.id}/categories`);
       setCategories(data);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Gagal memuat daftar category.');
+      setCategoriesError(err instanceof ApiError ? err.message : 'Gagal memuat daftar category.');
     } finally {
       setCategoriesLoading(false);
     }
@@ -77,6 +76,8 @@ export default function CategoriesPage() {
       setGenres([]);
       return;
     }
+    setGenresLoading(true);
+    setGenresError(null);
     try {
       // Endpoint publik (tanpa auth) — satu-satunya sumber daftar Genre milik
       // Platform ini, dipanggil lewat proxy yang sama (token ekstra diabaikan
@@ -84,7 +85,9 @@ export default function CategoriesPage() {
       const data = await apiClient<Genre[]>(`/public/platforms/${activePlatform.slug}/genres`);
       setGenres(data);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Gagal memuat daftar genre.');
+      setGenresError(err instanceof ApiError ? err.message : 'Gagal memuat daftar genre.');
+    } finally {
+      setGenresLoading(false);
     }
   }, [activePlatform]);
 
@@ -205,28 +208,35 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle>Categories</CardTitle>
-            <CardDescription>
-              Kelompokkan Genre milik Platform <strong>{activePlatform.nama}</strong> ke dalam Category.
-            </CardDescription>
-          </div>
-          {isOwner && (
+      <div className="space-y-6">
+        <PageHeader
+          title="Categories"
+          description={<>Kelompokkan Genre milik Platform <strong>{activePlatform.nama}</strong> ke dalam Category.</>}
+          actions={isOwner ? (
             <Button size="sm" onClick={openCreate}>
               <Plus className="mr-1.5 h-4 w-4" />
               Tambah Category
             </Button>
-          )}
+          ) : undefined}
+        />
+        <Card>
+        <CardHeader>
+          <CardTitle>Daftar Category</CardTitle>
+          <CardDescription>Kaitan Category dengan Genre mengatur pengelompokan katalog, bukan menghapus Genre.</CardDescription>
         </CardHeader>
         <CardContent>
           {categoriesLoading ? (
             <LoadingSpinner />
+          ) : categoriesError ? (
+            <ErrorState title="Category gagal dimuat" description={categoriesError} onRetry={() => void loadCategories()} />
           ) : categories.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Belum ada category dibuat untuk Platform ini.</p>
+            <EmptyState title="Belum ada Category" description="Tambahkan Category untuk mengelompokkan Genre pada katalog Platform." />
           ) : (
             <div className="space-y-6">
+              {genresError && (
+                <ErrorState title="Daftar Genre gagal dimuat" description={genresError} onRetry={() => void loadGenres()} />
+              )}
+              {genresLoading && <LoadingSpinner label="Memuat Genre untuk relasi…" />}
               {categories.map((category) => (
                 <div key={category.id} className="rounded-lg border p-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -347,6 +357,7 @@ export default function CategoriesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

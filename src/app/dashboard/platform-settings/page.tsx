@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Check, Copy, RefreshCw, X, Pencil, Trash2, ChevronDown, Save } from 'lucide-react';
@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
-import { PLATFORM_SETTINGS_NAV_ITEMS, type PlatformSettingsSection } from '@/lib/platform-settings-navigation';
+import { PLATFORM_SETTINGS_NAV_GROUPS, PLATFORM_SETTINGS_NAV_ITEMS, type PlatformSettingsSection } from '@/lib/platform-settings-navigation';
 import type {
   CreatePlatformPayload,
   DomainVerificationResponse,
@@ -839,15 +839,25 @@ export function PlatformSettingsPage({ section = null }: { section?: PlatformSet
                 <DropdownMenuContent align="end" className="max-h-[min(70vh,32rem)] w-72 overflow-y-auto">
                   <DropdownMenuLabel>Platform Settings</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {PLATFORM_SETTINGS_NAV_ITEMS.filter((item) => !('ownerOnly' in item) || !item.ownerOnly || isOwner).map((item) => {
-                    const Icon = item.icon;
+                  {PLATFORM_SETTINGS_NAV_GROUPS.map((group, groupIndex) => {
+                    const items = group.items.filter((item) => !('ownerOnly' in item) || !item.ownerOnly || isOwner);
+                    if (items.length === 0) return null;
                     return (
-                      <DropdownMenuItem key={item.section} asChild>
-                        <Link href={`/dashboard/platform-settings/${item.section}`} aria-current={section === item.section ? 'page' : undefined}>
-                          <Icon className="h-4 w-4" aria-hidden="true" />
-                          {item.label}
-                        </Link>
-                      </DropdownMenuItem>
+                      <Fragment key={group.id}>
+                        {groupIndex > 0 && <DropdownMenuSeparator />}
+                        <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
+                        {items.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <DropdownMenuItem key={item.section} asChild>
+                              <Link href={`/dashboard/platform-settings/${item.section}`} aria-current={section === item.section ? 'page' : undefined}>
+                                <Icon className="h-4 w-4" aria-hidden="true" />
+                                {item.label}
+                              </Link>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </Fragment>
                     );
                   })}
                 </DropdownMenuContent>
@@ -867,6 +877,7 @@ export function PlatformSettingsPage({ section = null }: { section?: PlatformSet
         <CardHeader>
           <CardTitle>{`Edit Platform — ${form.nama || '...'}`}</CardTitle>
           <CardDescription>{sectionDescription} Perubahan baru diterapkan setelah disimpan.</CardDescription>
+          <p className="text-xs text-muted-foreground">Kolom bertanda * wajib diisi; kolom lain bersifat opsional.</p>
         </CardHeader>
         <CardContent>
           <form id="platform-settings-form" onSubmit={handleSubmit} className="space-y-4">
@@ -880,11 +891,11 @@ export function PlatformSettingsPage({ section = null }: { section?: PlatformSet
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="nama">Nama Platform</Label>
+                  <Label htmlFor="nama">Nama Platform *</Label>
                   <Input id="nama" value={form.nama} onChange={(e) => updateField('nama', e.target.value)} placeholder="Nama Platform" required />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="slug">Slug</Label>
+                  <Label htmlFor="slug">Slug *</Label>
                   <Input
                     id="slug"
                     value={form.slug}
@@ -1371,7 +1382,7 @@ export function PlatformSettingsPage({ section = null }: { section?: PlatformSet
               {editingTemplateId === 'new' || editingTemplateId !== null ? (
                 <div className="space-y-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="dt-nama">Nama Template</Label>
+                    <Label htmlFor="dt-nama">Nama Template *</Label>
                     <Input
                       id="dt-nama"
                       value={templateForm.nama}
@@ -1382,7 +1393,7 @@ export function PlatformSettingsPage({ section = null }: { section?: PlatformSet
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="dt-content">Konten Disclaimer</Label>
+                    <Label htmlFor="dt-content">Konten Disclaimer *</Label>
                     <Textarea
                       id="dt-content"
                       value={templateForm.content}
@@ -1797,7 +1808,9 @@ export function PlatformSettingsPage({ section = null }: { section?: PlatformSet
         <Card className="mt-4">
           <CardHeader>
             <CardTitle>Domain Kustom</CardTitle>
-            <CardDescription>Domain milik Anda sendiri untuk Platform ini (mis. teknobuku.com). Isi lalu klik &ldquo;Simpan &amp; Verifikasi&rdquo;.</CardDescription>
+            <CardDescription>
+              Opsional. Hubungkan domain milik Anda sendiri ke Platform ini (mis. teknobuku.com), lalu simpan dan verifikasi kepemilikannya lewat DNS. HTTPS/TLS tetap dikonfigurasi melalui penyedia domain Anda.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Heart, ImagePlus, Plus, Trash2, X } from 'lucide-react';
 
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { PageHeader } from '@/components/admin/page-header';
+import { ErrorState } from '@/components/admin/error-state';
 import { usePlatformContext } from '@/context/platform-context';
 import { apiClient } from '@/lib/api-client';
 import { uploadImage, UploadImageError } from '@/lib/upload-image';
@@ -134,36 +135,45 @@ export default function DonationsSettingsPage() {
   const [recipientConfigured, setRecipientConfigured] = useState(false);
   const [loadedPlatformId, setLoadedPlatformId] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [loadingSettings, setLoadingSettings] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const loadRequestId = useRef(0);
+
+  const loadSettings = useCallback(async () => {
+    if (!activePlatform) return;
+    const requestId = ++loadRequestId.current;
+    setLoadingSettings(true);
+    setLoadFailed(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await apiClient<DonationSettingsResponse>(`/platforms/${activePlatform.id}/donation-settings`);
+      if (requestId !== loadRequestId.current) return;
+      setSettings(response.settings);
+      setRecipientConfigured(response.recipientConfigured);
+      setError(null);
+      setLoadFailed(false);
+      setLoadedPlatformId(activePlatform.id);
+    } catch (cause: unknown) {
+      if (requestId !== loadRequestId.current) return;
+      setSettings(EMPTY_SETTINGS);
+      setRecipientConfigured(false);
+      setLoadFailed(true);
+      setError(cause instanceof Error ? cause.message : 'Pengaturan donasi gagal dimuat.');
+      setLoadedPlatformId(activePlatform.id);
+    } finally {
+      if (requestId === loadRequestId.current) setLoadingSettings(false);
+    }
+  }, [activePlatform]);
 
   useEffect(() => {
-    if (!activePlatform) return;
-
-    let cancelled = false;
-    apiClient<DonationSettingsResponse>(`/platforms/${activePlatform.id}/donation-settings`)
-      .then((response) => {
-        if (cancelled) return;
-        setSettings(response.settings);
-        setRecipientConfigured(response.recipientConfigured);
-        setError(null);
-        setLoadFailed(false);
-        setLoadedPlatformId(activePlatform.id);
-      })
-      .catch((cause: unknown) => {
-        if (cancelled) return;
-        setSettings(EMPTY_SETTINGS);
-        setRecipientConfigured(false);
-        setLoadFailed(true);
-        setError(cause instanceof Error ? cause.message : 'Pengaturan donasi gagal dimuat.');
-        setLoadedPlatformId(activePlatform.id);
-      });
-
+    void loadSettings();
     return () => {
-      cancelled = true;
+      loadRequestId.current += 1;
     };
-  }, [activePlatform]);
+  }, [loadSettings]);
 
   function updateOption(id: string, patch: Partial<DonationOption>) {
     setSettings((current) => ({
@@ -201,7 +211,7 @@ export default function DonationsSettingsPage() {
     }
   }
 
-  if (platformLoading || (activePlatform && loadedPlatformId !== activePlatform.id)) {
+  if (platformLoading || (activePlatform && (loadedPlatformId !== activePlatform.id || loadingSettings))) {
     return <LoadingSpinner label="Memuat pengaturan donasi…" />;
   }
   if (!activePlatform) {
@@ -214,6 +224,13 @@ export default function DonationsSettingsPage() {
         title="Donasi Platform"
         description={`Atur dukungan sukarela untuk biaya operasional ${activePlatform.nama}. Donasi ini bukan untuk penulis atau buku tertentu.`}
       />
+      {loadFailed && (
+        <ErrorState
+          title="Pengaturan donasi belum dapat dimuat"
+          description={error ?? 'Data belum dimuat dari server. Pengaturan tidak dapat disimpan sampai pemuatan berhasil.'}
+          onRetry={() => void loadSettings()}
+        />
+      )}
 
       <Card>
         <CardHeader>
@@ -346,7 +363,7 @@ export default function DonationsSettingsPage() {
         </CardContent>
       </Card>
 
-      {error && <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
+      {error && !loadFailed && <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
       {notice && <p role="status" className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
       <div className="flex justify-end">
         <Button type="button" onClick={saveSettings} disabled={saving || loadFailed}>
