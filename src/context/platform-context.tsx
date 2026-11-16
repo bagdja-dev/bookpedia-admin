@@ -19,7 +19,7 @@ import type { Platform, PlatformsResponse, PlatformOwnerOrganization } from '@/l
  * "Yang aktif" disimpan di React Context +
  * `localStorage`, dipilih lewat dropdown Topbar — bukan navigasi
  * `/dashboard/[platformId]/...`. Semua halaman platform-scoped
- * (`platform-settings`, `staff`) flat route, ambil `activePlatform` dari
+ * (`platform-settings` sections, `staff`) route, ambil `activePlatform` dari
  * context ini.
  */
 export const ACTIVE_PLATFORM_STORAGE_KEY = 'na_active_platform';

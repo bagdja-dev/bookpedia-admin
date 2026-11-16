@@ -238,7 +238,7 @@ export default function DonationsSettingsPage() {
           {!recipientConfigured && (
             <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
               Wallet penerima belum diatur. Owner Platform perlu menautkan wallet organisasi di{' '}
-              <Link className="font-medium underline" href="/dashboard/platform-settings">Platform Settings</Link> sebelum donasi bisa diaktifkan.
+              <Link className="font-medium underline" href="/dashboard/platform-settings/identity">Platform Settings</Link> sebelum donasi bisa diaktifkan.
             </p>
           )}
           <label className="block space-y-1.5">

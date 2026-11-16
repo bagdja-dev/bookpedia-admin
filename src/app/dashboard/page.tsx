@@ -60,7 +60,7 @@ const stats = [
 
 const setupLinks = [
   {
-    href: '/dashboard/platform-settings',
+    href: '/dashboard/platform-settings/identity',
     title: 'Identitas & pengaturan Platform',
     description: 'Nama, aset, tampilan, domain, dan aturan pembaca.',
     icon: Settings,
@@ -237,7 +237,7 @@ export default function DashboardIndexPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild>
-            <Link href="/dashboard/platform-settings">
+            <Link href="/dashboard/platform-settings/identity">
               Lanjutkan Setup <ArrowUpRight aria-hidden="true" />
             </Link>
           </Button>

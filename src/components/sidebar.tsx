@@ -3,10 +3,25 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, ChevronLeft, ChevronRight, Heart, History, LayoutDashboard, Library, PanelsTopLeft, Plus, Settings, Tag, UserRound, Users, X, type LucideIcon } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  History,
+  LayoutDashboard,
+  Library,
+  PanelsTopLeft,
+  Tag,
+  UserRound,
+  Users,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { usePlatformContext } from '@/context/platform-context';
+import { PLATFORM_SETTINGS_NAV_ITEMS, platformSettingsPath } from '@/lib/platform-settings-navigation';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -20,7 +35,6 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   ownerOnly?: boolean;
-  createOnly?: boolean;
 }
 
 interface NavGroup {
@@ -59,11 +73,13 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: 'platform',
-    label: 'Platform',
-    items: [
-      { href: '/dashboard/platform-settings', label: 'Platform Settings', icon: Settings },
-      { href: '/dashboard/platforms/new', label: 'Buat Platform', icon: Plus, createOnly: true },
-    ],
+    label: 'Platform Settings',
+    items: PLATFORM_SETTINGS_NAV_ITEMS.map((item) => ({
+      href: platformSettingsPath(item.section),
+      label: item.label,
+      icon: item.icon,
+      ...('ownerOnly' in item ? { ownerOnly: item.ownerOnly } : {}),
+    })),
   },
   {
     id: 'access',
@@ -73,14 +89,17 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 function isItemActive(pathname: string | null, href: string) {
-  if (href === '/dashboard') return pathname === href;
-  return pathname === href || Boolean(pathname?.startsWith(`${href}/`));
+  if (href.startsWith('/dashboard/platform-settings/')) return pathname === href;
+  const route = href;
+  if (route === '/dashboard') return pathname === route;
+  return pathname === route || Boolean(pathname?.startsWith(`${route}/`));
 }
 
 export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
-  const { isOwner, canCreatePlatform } = usePlatformContext();
-  const activeGroupId = NAV_GROUPS.find((group) => group.items.some((item) => isItemActive(pathname, item.href)))?.id;
+  const { isOwner } = usePlatformContext();
+  const activeGroupId = NAV_GROUPS.find((group) => group.items.some((item) => isItemActive(pathname, item.href)))?.id
+    ?? (pathname?.startsWith('/dashboard/platform-settings') ? 'platform' : undefined);
   const [groupState, setGroupState] = useState<{ pathname: string | null; ids: string[] } | null>(null);
   const expandedGroups = groupState?.pathname === pathname
     ? groupState.ids
@@ -142,7 +161,7 @@ export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: Sideb
         <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4">
           {NAV_GROUPS.map((group) => {
             const visibleItems = group.items.filter((item) => (
-              (!item.ownerOnly || isOwner) && (!item.createOnly || canCreatePlatform)
+              !item.ownerOnly || isOwner
             ));
             if (visibleItems.length === 0) return null;
 
