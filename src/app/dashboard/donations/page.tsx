@@ -7,6 +7,7 @@ import { Heart, ImagePlus, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { PageHeader } from '@/components/admin/page-header';
 import { usePlatformContext } from '@/context/platform-context';
 import { apiClient } from '@/lib/api-client';
 import { uploadImage, UploadImageError } from '@/lib/upload-image';
@@ -209,12 +210,10 @@ export default function DonationsSettingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Donasi Platform</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Atur dukungan sukarela untuk biaya operasional {activePlatform.nama}. Donasi ini bukan untuk penulis atau buku tertentu.
-        </p>
-      </div>
+      <PageHeader
+        title="Donasi Platform"
+        description={`Atur dukungan sukarela untuk biaya operasional ${activePlatform.nama}. Donasi ini bukan untuk penulis atau buku tertentu.`}
+      />
 
       <Card>
         <CardHeader>

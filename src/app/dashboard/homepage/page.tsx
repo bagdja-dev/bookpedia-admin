@@ -8,6 +8,8 @@ import { HomepageManualBooksEditor } from '@/components/homepage-manual-books-ed
 import { ImageUpload } from '@/components/image-upload';
 import { SeoTemplateField } from '@/components/seo-template-field';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { EmptyState } from '@/components/admin/empty-state';
+import { PageHeader } from '@/components/admin/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -87,7 +89,12 @@ export default function HomepageSettingsPage() {
   if (loading) return <LoadingSpinner label="Memuat pengaturan homepage..." />;
 
   if (!activePlatform) {
-    return <p className="text-sm text-muted-foreground">Belum ada platform aktif.</p>;
+    return (
+      <EmptyState
+        title="Belum ada Platform aktif"
+        description="Pilih Platform dari menu atas untuk mengatur section katalog publik."
+      />
+    );
   }
 
   const activePlatformId = activePlatform.id;
@@ -255,12 +262,11 @@ export default function HomepageSettingsPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Homepage</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Susun section katalog publik untuk {activePlatform.nama}.</p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        title="Homepage"
+        description={`Susun section katalog publik untuk ${activePlatform.nama}.`}
+        actions={
+          <>
           <Button type="button" variant="outline" onClick={addSection}>
             <Plus className="h-4 w-4" />
             Tambah section
@@ -269,8 +275,9 @@ export default function HomepageSettingsPage() {
             <Save className="h-4 w-4" />
             {saving ? 'Menyimpan...' : 'Simpan'}
           </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="space-y-4">
         {sections.length === 0 && (

@@ -1,11 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ChevronDown, Menu, Plus } from 'lucide-react';
+import { BookOpen, ChevronDown, Menu, Plus } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/admin/status-badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,13 +20,14 @@ import { usePlatformContext } from '@/context/platform-context';
 import { useAuth } from '@/hooks/use-auth';
 
 interface TopbarProps {
+  menuOpen: boolean;
   onMenuToggle: () => void;
 }
 
-export function Topbar({ onMenuToggle }: TopbarProps) {
+export function Topbar({ menuOpen, onMenuToggle }: TopbarProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { platforms, activePlatform, switchPlatform, isOwner, canCreatePlatform } = usePlatformContext();
+  const { platforms, activePlatform, switchPlatform, isOwner, canCreatePlatform, loading } = usePlatformContext();
   const platformGroups = Array.from(
     platforms.reduce((groups, platform) => {
       const key = platform.ownerOrgId ?? 'unassigned';
@@ -45,40 +47,54 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
   const displayName = user?.username ?? user?.email ?? 'User';
   const initials = displayName.charAt(0).toUpperCase();
 
-  const handleCreatePlatform = () => {
-    router.push('/dashboard/platforms/new');
-  };
-
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b bg-background/80 px-4 backdrop-blur-md">
-      <div className="flex min-w-0 items-center gap-3">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-background/90 px-3 backdrop-blur-md sm:px-5">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="shrink-0 lg:hidden"
           onClick={onMenuToggle}
-          aria-label="Toggle menu"
+          aria-label={menuOpen ? 'Tutup navigasi' : 'Buka navigasi'}
+          aria-expanded={menuOpen}
+          aria-controls="primary-navigation"
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="h-5 w-5" aria-hidden="true" />
         </Button>
 
-        {/* Platform switcher */}
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <BookOpen className="h-[18px] w-[18px]" aria-hidden="true" />
+        </div>
+        <div className="hidden min-w-0 sm:block">
+          <p className="text-xs font-bold leading-tight tracking-[0.12em]">BOOKPEDIA</p>
+          <p className="mt-0.5 text-[10px] font-medium leading-tight tracking-[0.14em] text-muted-foreground">ADMIN · EDITORIAL</p>
+        </div>
+
+        <div className="mx-1 hidden h-8 border-l border-border sm:block" />
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="max-w-[220px] justify-between gap-2">
+            <Button
+              variant="outline"
+              className="min-w-0 max-w-[min(44vw,15rem)] justify-between gap-2 border-border bg-card/80 px-2.5 sm:max-w-[260px] sm:px-3"
+              aria-label={activePlatform ? `Platform aktif: ${activePlatform.nama}` : 'Pilih Platform'}
+            >
               <span className="truncate">
-                {activePlatform ? activePlatform.nama : 'Pilih Platform'}
+                {activePlatform?.nama ?? (loading ? 'Memuat Platform…' : 'Pilih Platform')}
               </span>
-              <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64">
+          <DropdownMenuContent align="start" className="w-[min(20rem,calc(100vw-2rem))]">
             <DropdownMenuLabel>Platform Anda</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {canCreatePlatform && (
               <>
-                <DropdownMenuItem onSelect={handleCreatePlatform} className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
+                <DropdownMenuItem
+                  onSelect={() => router.push('/dashboard/platforms/new')}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
                   <span>Tambah Platform</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -86,7 +102,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
             )}
             {platforms.length === 0 && (
               <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                Belum ada Platform.
+                {loading ? 'Memuat daftar Platform…' : 'Belum ada Platform.'}
               </div>
             )}
             {platformGroups.map((group, groupIndex) => (
@@ -104,7 +120,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
                     <span className="truncate">{platform.nama}</span>
                     {activePlatform?.id === platform.id && (
                       <Badge variant="secondary" className="ml-2 shrink-0">
-                        Aktif
+                        Dipilih
                       </Badge>
                     )}
                   </DropdownMenuItem>
@@ -113,15 +129,26 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {activePlatform && (
+          <StatusBadge
+            label={activePlatform.isActive ? 'Aktif' : 'Nonaktif'}
+            tone={activePlatform.isActive ? 'success' : 'neutral'}
+            className="hidden shrink-0 sm:inline-flex"
+          />
+        )}
       </div>
 
-      {/* Right: profile menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 outline-none transition-colors hover:bg-accent">
+          <button
+            type="button"
+            className="flex shrink-0 items-center gap-2 rounded-lg px-1.5 py-1.5 outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring sm:px-2"
+            aria-label={`Menu akun ${displayName}`}
+          >
             <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium leading-tight">{displayName}</p>
-              {isOwner && <p className="text-xs text-muted-foreground">Owner</p>}
+              <p className="max-w-40 truncate text-sm font-medium leading-tight">{displayName}</p>
+              {isOwner && <p className="mt-0.5 text-xs text-muted-foreground">Owner</p>}
             </div>
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-primary text-xs text-primary-foreground">

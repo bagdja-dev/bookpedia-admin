@@ -4,9 +4,10 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { ErrorState } from '@/components/admin/error-state';
 import { Sidebar } from '@/components/sidebar';
 import { Topbar } from '@/components/topbar';
-import { PlatformProvider } from '@/context/platform-context';
+import { PlatformProvider, usePlatformContext } from '@/context/platform-context';
 import { useAuth } from '@/hooks/use-auth';
 
 function AuthGuard({ children }: { children: ReactNode }) {
@@ -63,15 +64,31 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             onToggleCollapsed={toggleCollapsed}
           />
 
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <Topbar onMenuToggle={() => setSidebarOpen((v) => !v)} />
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <Topbar menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen((v) => !v)} />
 
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-              {children}
+            <main className="flex-1 overflow-y-auto">
+              <div className="mx-auto w-full max-w-[1600px] space-y-4 p-4 sm:p-6 lg:p-8">
+                <PlatformErrorNotice />
+                {children}
+              </div>
             </main>
           </div>
         </div>
       </PlatformProvider>
     </AuthGuard>
+  );
+}
+
+function PlatformErrorNotice() {
+  const { error, refresh } = usePlatformContext();
+  if (!error) return null;
+
+  return (
+    <ErrorState
+      title="Platform tidak berhasil dimuat"
+      description={error}
+      onRetry={() => { void refresh(); }}
+    />
   );
 }

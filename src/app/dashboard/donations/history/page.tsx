@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { PageHeader } from '@/components/admin/page-header';
 import { usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient } from '@/lib/api-client';
 import type { PlatformDonation, PlatformDonationListResponse } from '@/lib/types';
@@ -132,17 +133,15 @@ export default function DonationHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Riwayat Donasi</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Pantau donatur dan pembayaran untuk <strong>{activePlatform.nama}</strong>.
-          </p>
-        </div>
-        <Button type="button" variant="outline" disabled={loading} onClick={() => void loadDonations()}>
-          <RefreshCw className="mr-2 h-4 w-4" /> Muat ulang
-        </Button>
-      </div>
+      <PageHeader
+        title="Riwayat Donasi"
+        description={<>Pantau donatur dan pembayaran untuk <strong>{activePlatform.nama}</strong>.</>}
+        actions={
+          <Button type="button" variant="outline" disabled={loading} onClick={() => void loadDonations()}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Muat ulang
+          </Button>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
