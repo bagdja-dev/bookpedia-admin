@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { BookOpen, ChevronDown, Menu, Plus } from 'lucide-react';
+import { ChevronDown, Menu, Plus } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -61,16 +61,6 @@ export function Topbar({ menuOpen, onMenuToggle }: TopbarProps) {
         >
           <Menu className="h-5 w-5" aria-hidden="true" />
         </Button>
-
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <BookOpen className="h-[18px] w-[18px]" aria-hidden="true" />
-        </div>
-        <div className="hidden min-w-0 sm:block">
-          <p className="text-xs font-bold leading-tight tracking-[0.12em]">BOOKPEDIA</p>
-          <p className="mt-0.5 text-[10px] font-medium leading-tight tracking-[0.14em] text-muted-foreground">ADMIN · EDITORIAL</p>
-        </div>
-
-        <div className="mx-1 hidden h-8 border-l border-border sm:block" />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

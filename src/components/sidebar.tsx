@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   ChevronDown,
@@ -185,9 +186,27 @@ export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: Sideb
         )}
       >
         <div className={cn('flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-4', collapsed && 'lg:justify-center lg:px-0')}>
-          <span className={cn('text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground', collapsed && 'lg:hidden')}>
-            Navigasi
-          </span>
+          <Link
+            href="/dashboard"
+            onClick={onClose}
+            title={collapsed ? 'Bookpedia Admin' : undefined}
+            className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            aria-label="Bookpedia Admin"
+          >
+            <Image
+              src="/bookpedia-logo.png"
+              alt=""
+              width={40}
+              height={40}
+              className="h-8 w-8 shrink-0 object-contain"
+            />
+            <span className={cn('min-w-0', collapsed && 'lg:hidden')}>
+              <span className="block text-[11px] font-bold leading-tight tracking-[0.12em]">BOOKPEDIA</span>
+              <span className="mt-0.5 block text-[9px] font-medium leading-tight tracking-[0.12em] text-muted-foreground">
+                ADMIN · EDITORIAL
+              </span>
+            </span>
+          </Link>
           <button
             type="button"
             onClick={onClose}
@@ -199,6 +218,9 @@ export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: Sideb
         </div>
 
         <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4">
+          <p className={cn('px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground', collapsed && 'lg:hidden')}>
+            Navigasi
+          </p>
           {NAV_GROUPS.map((group) => {
             const visibleItems = group.items.filter((item) => (
               !item.ownerOnly || isOwner
