@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Check, Copy, RefreshCw, X, Pencil, Trash2 } from 'lucide-react';
+import { Check, Copy, RefreshCw, X, Pencil, Trash2, ChevronDown, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,8 +18,20 @@ import { AudioUpload } from '@/components/audio-upload';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { PlatformBuildsSection } from '@/components/platform-builds-section';
 import { TermsAndConditionsEditor } from '@/components/terms-and-conditions-editor';
+import { EmptyState } from '@/components/admin/empty-state';
+import { PageHeader } from '@/components/admin/page-header';
+import { StatusBadge } from '@/components/admin/status-badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ACTIVE_PLATFORM_STORAGE_KEY, usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
+import { PLATFORM_SETTINGS_NAV_GROUPS, PLATFORM_SETTINGS_NAV_ITEMS, type PlatformSettingsSection } from '@/lib/platform-settings-navigation';
 import type {
   CreatePlatformPayload,
   DomainVerificationResponse,
@@ -61,6 +74,51 @@ const AD_SLOT_FIELDS = [
   { key: 'bookDetail', label: 'Detail buku: sebelum daftar chapter' },
   { key: 'chapterReader', label: 'Halaman baca: sebelum navigasi chapter' },
 ] as const;
+
+const SECTION_UPDATE_FIELDS: Record<PlatformSettingsSection, readonly (keyof UpdatePlatformPayload)[]> = {
+  identity: ['nama', 'slug', 'tagline', 'motto', 'logoUrl', 'faviconUrl', 'notificationSoundUrl', 'loginBackgroundUrl', 'rendererKey'],
+  'reader-colors': ['colors'],
+  studio: ['studioEditMode'],
+  adsense: ['adsensePublisherId'],
+  'author-access': ['lockStudio'],
+  'reader-rules': ['maxFreeChapters', 'showBookStatus', 'enableDisclaimer', 'maxTagsPerBook', 'enableRating', 'ratingMode', 'enableLike', 'enableComment', 'enableShare', 'chapterPreviewMaxChars'],
+  'content-protection': ['blockContentCopy', 'copyAttributionEnabled', 'copyAttributionMaxChars'],
+  seo: ['seoSiteTitleSuffix', 'seoDefaultH1', 'seoDefaultTitle', 'seoDefaultDescription', 'seoDefaultOgTitle', 'seoDefaultOgDescription', 'seoDefaultOgType', 'seoPrefix', 'seoSuffix'],
+  legal: ['aboutContent', 'termsAndConditions', 'privacyPolicy'],
+  typography: ['readingTypography'],
+  ads: ['adSlots'],
+  contact: ['contactPhone', 'contactWhatsapp', 'contactEmail'],
+  'owner-wallet': [],
+  'search-console': ['searchConsoleVerificationFilename', 'searchConsoleVerificationContent'],
+  android: ['playStoreUrl', 'androidPackageName', 'androidSha256CertFingerprints'],
+  domain: [],
+};
+
+const SECTION_DESCRIPTIONS: Record<PlatformSettingsSection, string> = {
+  identity: 'Kelola nama, alamat, aset brand, dan identitas publik Platform.',
+  'reader-colors': 'Atur palet warna dan pratinjau tampilan reader Platform.',
+  studio: 'Tentukan cara editor Chapter menyimpan perubahan penulis.',
+  adsense: 'Atur ID Publisher Google AdSense untuk Platform.',
+  'author-access': 'Atur pendaftaran dan akses penulis pada Studio.',
+  'reader-rules': 'Kelola aturan akses chapter, status cerita, rating, dan interaksi pembaca.',
+  'content-protection': 'Atur perlindungan ringan dan atribusi konten Chapter.',
+  seo: 'Atur template metadata SEO untuk halaman publik Platform.',
+  legal: 'Kelola halaman Tentang, kebijakan legal, dan template disclaimer.',
+  typography: 'Atur font dan keterbacaan isi Chapter.',
+  ads: 'Kelola slot iklan yang ditampilkan pada reader.',
+  contact: 'Atur informasi kontak yang tampil di halaman publik.',
+  'owner-wallet': 'Kelola wallet organisasi penerima donasi Platform.',
+  'search-console': 'Masukkan file verifikasi Google Search Console.',
+  android: 'Kelola konfigurasi aplikasi Android, Android App Links, build, dan keystore.',
+  domain: 'Simpan dan verifikasi domain kustom untuk Platform.',
+};
+
+function selectUpdatePayload<K extends keyof UpdatePlatformPayload>(
+  payload: UpdatePlatformPayload,
+  fields: readonly K[],
+): Pick<UpdatePlatformPayload, K> {
+  return fields.reduce((result, field) => ({ ...result, [field]: payload[field] }), {} as Pick<UpdatePlatformPayload, K>);
+}
 
 interface FormState {
   nama: string;
@@ -262,13 +320,14 @@ function DomainRecordRow({
   );
 }
 
-export default function PlatformSettingsPage() {
+export function PlatformSettingsPage({ section = null }: { section?: PlatformSettingsSection | null }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { platforms, activePlatform, isOwner, ownedOrganizations, loading, refresh } = usePlatformContext();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [savedFormState, setSavedFormState] = useState<{ platformId: string; form: FormState } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [faviconUploading, setFaviconUploading] = useState(false);
@@ -309,6 +368,12 @@ export default function PlatformSettingsPage() {
   const isCreating = selectedId === null;
 
   const selectedPlatform = useMemo(() => platforms.find((p) => p.id === selectedId) ?? null, [platforms, selectedId]);
+  const formIsDirty = Boolean(
+    selectedPlatform
+    && savedFormState?.platformId === selectedPlatform.id
+    && JSON.stringify(form) !== JSON.stringify(savedFormState.form),
+  );
+  const isUploadingAsset = logoUploading || faviconUploading || notificationSoundUploading || loginBackgroundUploading;
 
   const savedDomain = selectedPlatform?.domain ?? '';
 
@@ -329,18 +394,31 @@ export default function PlatformSettingsPage() {
   useEffect(() => {
     if (loading) return;
 
-    if (searchParams.get('mode') === 'create' || !activePlatform) {
+    if (searchParams.get('mode') === 'create') {
       setSelectedId(null);
       router.replace('/dashboard/platforms/new');
       return;
     }
 
+    if (!section) {
+      router.replace('/dashboard/platform-settings/identity');
+      return;
+    }
+
+    if (!activePlatform) {
+      setSelectedId(null);
+      router.replace('/dashboard/platforms/new');
+      return;
+    }
+
+    const savedForm = platformToForm(activePlatform);
     setSelectedId(activePlatform.id);
-    setForm(platformToForm(activePlatform));
+    setForm(savedForm);
+    setSavedFormState({ platformId: activePlatform.id, form: savedForm });
     setOwnerOrgId(activePlatform.ownerOrgId ?? '');
     setSlugTouched(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, activePlatform?.id, router, searchParams]);
+  }, [loading, activePlatform?.id, router, searchParams, section]);
 
   // Ganti Platform yang diedit -> instruksi verifikasi domain Platform
   // sebelumnya tidak relevan lagi, jangan biarkan nyangkut di layar.
@@ -502,7 +580,13 @@ export default function PlatformSettingsPage() {
         await refresh();
         router.replace('/dashboard/platform-settings');
       } else if (selectedPlatform) {
-        const updated = await apiClient<Platform>(`/platforms/${selectedPlatform.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        const updatePayload = section
+          ? selectUpdatePayload(payload, SECTION_UPDATE_FIELDS[section])
+          : payload;
+        const updated = await apiClient<Platform>(`/platforms/${selectedPlatform.id}`, { method: 'PATCH', body: JSON.stringify(updatePayload) });
+        const savedForm = platformToForm(updated);
+        setForm(savedForm);
+        setSavedFormState({ platformId: updated.id, form: savedForm });
         toast.success(`Platform "${updated.nama}" berhasil disimpan.`);
       }
 
@@ -721,112 +805,182 @@ export default function PlatformSettingsPage() {
     return <LoadingSpinner label={loading ? 'Memuat data Platform…' : 'Membuka wizard pembuatan Platform…'} />;
   }
 
+  if (!section) return <LoadingSpinner label="Membuka pengaturan Platform…" />;
+
+  const sectionConfig = PLATFORM_SETTINGS_NAV_ITEMS.find((item) => item.section === section);
+  const sectionLabel = sectionConfig?.label ?? 'Platform Settings';
+  const sectionDescription = SECTION_DESCRIPTIONS[section];
+  if (sectionConfig && 'ownerOnly' in sectionConfig && sectionConfig.ownerOnly && !isOwner) {
+    return <EmptyState title="Pengaturan khusus Owner" description="Hanya Owner Platform yang dapat mengakses pengaturan ini." />;
+  }
+  const isPlatformFormSection = section !== 'domain';
+  const sectionCanSave = SECTION_UPDATE_FIELDS[section].length > 0;
+  const showSection = (sectionName: PlatformSettingsSection) => section === sectionName;
+
   return (
     <div>
+      <div className="sticky top-0 z-20 -mx-4 -mt-4 border-b border-border bg-background/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <PageHeader
+          title={sectionLabel}
+          description={sectionDescription}
+          actions={
+            <>
+              <StatusBadge
+                label={isUploadingAsset ? 'Upload berlangsung' : formIsDirty ? 'Draft belum disimpan' : 'Form tersimpan'}
+                tone={isUploadingAsset || formIsDirty ? 'warning' : 'success'}
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="outline" className="gap-2">
+                    Pengaturan
+                    <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="max-h-[min(70vh,32rem)] w-72 overflow-y-auto">
+                  <DropdownMenuLabel>Platform Settings</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {PLATFORM_SETTINGS_NAV_GROUPS.map((group, groupIndex) => {
+                    const items = group.items.filter((item) => !('ownerOnly' in item) || !item.ownerOnly || isOwner);
+                    if (items.length === 0) return null;
+                    return (
+                      <Fragment key={group.id}>
+                        {groupIndex > 0 && <DropdownMenuSeparator />}
+                        <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
+                        {items.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <DropdownMenuItem key={item.section} asChild>
+                              <Link href={`/dashboard/platform-settings/${item.section}`} aria-current={section === item.section ? 'page' : undefined}>
+                                <Icon className="h-4 w-4" aria-hidden="true" />
+                                {item.label}
+                              </Link>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </Fragment>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {isPlatformFormSection && sectionCanSave && (
+                <Button type="submit" form="platform-settings-form" disabled={submitting || isUploadingAsset}>
+                  <Save className="mr-2 h-4 w-4" aria-hidden="true" />
+                  {submitting ? 'Menyimpan…' : 'Simpan'}
+                </Button>
+              )}
+            </>
+          }
+        />
+      </div>
+      {isPlatformFormSection && (
       <Card>
         <CardHeader>
-          <CardTitle>{isCreating ? 'Tambah Platform Baru' : `Edit Platform — ${form.nama || '...'}`}</CardTitle>
-          <CardDescription>
-            {isCreating
-              ? 'Isi detail Platform baru. Slug dipakai untuk subdomain publik (mis. {slug}.bookpedia.bagdja.com).'
-              : 'Perbarui pengaturan Platform ini. Slug bisa diubah manual, tapi hati-hati — itu mengubah subdomain publik yang sedang aktif.'}
-          </CardDescription>
+          <CardTitle>{`Edit Platform — ${form.nama || '...'}`}</CardTitle>
+          <CardDescription>{sectionDescription} Perubahan baru diterapkan setelah disimpan.</CardDescription>
+          <p className="text-xs text-muted-foreground">Kolom bertanda * wajib diisi; kolom lain bersifat opsional.</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="nama">Nama Platform</Label>
-                <Input id="nama" value={form.nama} onChange={(e) => updateField('nama', e.target.value)} placeholder="Teknobuku" required />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="slug">Slug</Label>
-                <Input
-                  id="slug"
-                  value={form.slug}
-                  onChange={(e) => {
-                    setSlugTouched(true);
-                    updateField('slug', slugify(e.target.value));
-                  }}
-                  placeholder="teknobuku"
-                  required
-                />
-                {!isCreating && (
-                  <p className="text-xs text-amber-600">Mengubah slug langsung mengubah subdomain publik Platform ini — link/bookmark lama ke subdomain sebelumnya akan berhenti berfungsi.</p>
-                )}
-              </div>
-              <ImageUpload
-                id="logoUrl"
-                label="Logo"
-                folder="platforms"
-                value={form.logoUrl}
-                onChange={(url) => updateField('logoUrl', url)}
-                disabled={submitting}
-                onUploadingChange={setLogoUploading}
-                previewWidth={144}
-                previewHeight={64}
-              />
-              <ImageUpload
-                id="faviconUrl"
-                label="Favicon"
-                folder="platforms"
-                value={form.faviconUrl}
-                onChange={(url) => updateField('faviconUrl', url)}
-                disabled={submitting}
-                onUploadingChange={setFaviconUploading}
-                previewWidth={64}
-                previewHeight={64}
-              />
-              <AudioUpload
-                id="notificationSoundUrl"
-                label="Suara Notifikasi"
-                folder="platforms"
-                value={form.notificationSoundUrl}
-                onChange={(url) => updateField('notificationSoundUrl', url)}
-                disabled={submitting}
-                onUploadingChange={setNotificationSoundUploading}
-              />
-              {!isCreating && (
-                <div className="space-y-1.5">
-                  <ImageUpload
-                    id="loginBackgroundUrl"
-                    label="Background Halaman Login"
-                    folder="platforms"
-                    value={form.loginBackgroundUrl}
-                    onChange={(url) => updateField('loginBackgroundUrl', url)}
-                    disabled={submitting}
-                    onUploadingChange={setLoginBackgroundUploading}
-                    previewWidth={192}
-                    previewHeight={108}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Tampil di login.bagdja.com saat pembaca masuk dari Platform ini, bersama Favicon di atas sebagai ikon. Landscape minimal 1920×1080 disarankan. Kosongkan untuk memakai background
-                    default Bookpedia.
-                  </p>
-                </div>
-              )}
-              <div className="space-y-1.5">
-                <Label htmlFor="rendererKey">Renderer Key</Label>
-                <Input id="rendererKey" value={form.rendererKey} onChange={(e) => updateField('rendererKey', e.target.value)} placeholder="reader" />
-                <p className="text-xs text-muted-foreground">
-                  Satu-satunya template yang ada saat ini adalah &ldquo;reader&rdquo;. Renderer baru (mis. musik) ditambahkan nanti begitu benar-benar dibutuhkan.
+          <form id="platform-settings-form" onSubmit={handleSubmit} className="space-y-4">
+            {showSection('identity') && (
+            <section aria-labelledby="platform-identity-heading" className="space-y-4 rounded-xl border bg-background/50 p-4 sm:p-5">
+              <div>
+                <h2 id="platform-identity-heading" className="font-semibold">Identitas & aset brand</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Informasi yang membantu pembaca mengenali Platform. Upload aset langsung ke storage, tetapi URL-nya baru diterapkan ke Platform setelah disimpan.
                 </p>
               </div>
-            </div>
-
-            <div className="grid gap-4 border-t pt-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="tagline">Tagline</Label>
-                <Input id="tagline" value={form.tagline} onChange={(e) => updateField('tagline', e.target.value)} placeholder="Baca dan tulis cerita favoritmu" maxLength={255} />
-                <p className="text-xs text-muted-foreground">Tampil di bawah nama atau logo pada renderer publik.</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="nama">Nama Platform *</Label>
+                  <Input id="nama" value={form.nama} onChange={(e) => updateField('nama', e.target.value)} placeholder="Nama Platform" required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="slug">Slug *</Label>
+                  <Input
+                    id="slug"
+                    value={form.slug}
+                    onChange={(e) => {
+                      setSlugTouched(true);
+                      updateField('slug', slugify(e.target.value));
+                    }}
+                    placeholder="slug-platform"
+                    required
+                  />
+                  {!isCreating && (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">Mengubah slug langsung mengubah subdomain publik Platform ini — link/bookmark lama ke subdomain sebelumnya akan berhenti berfungsi.</p>
+                  )}
+                </div>
+                <ImageUpload
+                  id="logoUrl"
+                  label="Logo Platform"
+                  folder="platforms"
+                  value={form.logoUrl}
+                  onChange={(url) => updateField('logoUrl', url)}
+                  disabled={submitting}
+                  onUploadingChange={setLogoUploading}
+                  previewWidth={144}
+                  previewHeight={64}
+                />
+                <ImageUpload
+                  id="faviconUrl"
+                  label="Favicon"
+                  folder="platforms"
+                  value={form.faviconUrl}
+                  onChange={(url) => updateField('faviconUrl', url)}
+                  disabled={submitting}
+                  onUploadingChange={setFaviconUploading}
+                  previewWidth={64}
+                  previewHeight={64}
+                />
+                <AudioUpload
+                  id="notificationSoundUrl"
+                  label="Suara Notifikasi"
+                  folder="platforms"
+                  value={form.notificationSoundUrl}
+                  onChange={(url) => updateField('notificationSoundUrl', url)}
+                  disabled={submitting}
+                  onUploadingChange={setNotificationSoundUploading}
+                />
+                {!isCreating && (
+                  <div className="space-y-1.5">
+                    <ImageUpload
+                      id="loginBackgroundUrl"
+                      label="Background Halaman Login"
+                      folder="platforms"
+                      value={form.loginBackgroundUrl}
+                      onChange={(url) => updateField('loginBackgroundUrl', url)}
+                      disabled={submitting}
+                      onUploadingChange={setLoginBackgroundUploading}
+                      previewWidth={192}
+                      previewHeight={108}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Ditampilkan pada login.bagdja.com saat pembaca masuk dari Platform ini. Gunakan gambar landscape; kosongkan untuk background default Bookpedia.
+                    </p>
+                  </div>
+                )}
+                <div className="space-y-1.5">
+                  <Label htmlFor="rendererKey">Renderer Key</Label>
+                  <Input id="rendererKey" value={form.rendererKey} onChange={(e) => updateField('rendererKey', e.target.value)} placeholder="reader" />
+                  <p className="text-xs text-muted-foreground">
+                    Renderer yang tersedia saat ini adalah &ldquo;reader&rdquo;.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tagline">Tagline</Label>
+                  <Input id="tagline" value={form.tagline} onChange={(e) => updateField('tagline', e.target.value)} placeholder="Tagline untuk pembaca" maxLength={255} />
+                  <p className="text-xs text-muted-foreground">Tampil di bawah nama atau logo pada renderer publik.</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="motto">Moto</Label>
+                  <Input id="motto" value={form.motto} onChange={(e) => updateField('motto', e.target.value)} placeholder="Moto Platform" maxLength={255} />
+                  <p className="text-xs text-muted-foreground">Tampil bersama tagline pada renderer publik.</p>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="motto">Moto</Label>
-                <Input id="motto" value={form.motto} onChange={(e) => updateField('motto', e.target.value)} placeholder="Setiap cerita punya tempat untuk pulang" maxLength={255} />
-                <p className="text-xs text-muted-foreground">Tampil bersama tagline pada renderer publik.</p>
-              </div>
-            </div>
+            </section>
+            )}
 
+            {showSection('studio') && (
             <div className="space-y-3 border-t pt-4">
               <div>
                 <Label>Studio Settings</Label>
@@ -846,17 +1000,29 @@ export default function PlatformSettingsPage() {
                 <p className="text-xs text-muted-foreground">Mode Manual membuka Chapter dalam keadaan baca saja. Penulis harus klik Edit dan Simpan untuk menyimpan perubahan.</p>
               </div>
             </div>
+            )}
 
-            <div className="space-y-3 border-t pt-4">
+            {showSection('reader-colors') && (
+            <section aria-labelledby="reader-colors-heading" className="space-y-4 rounded-xl border bg-background/50 p-4 sm:p-5">
               <div>
-                <Label>Warna</Label>
-                <p className="text-xs text-muted-foreground">
+                <h2 id="reader-colors-heading" className="font-semibold">Warna & tampilan reader</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Skema warna reader Platform ini. Warna umum dipakai di mana-mana; warna per bagian (header, kartu buku, footer, tombol, status, area baca) opsional untuk menimpanya.
                 </p>
               </div>
-              <PlatformColorSettings colors={form.colors} onChange={updateColorField} />
-            </div>
+              <PlatformColorSettings
+                colors={form.colors}
+                onChange={updateColorField}
+                brandName={form.nama}
+                tagline={form.tagline}
+                motto={form.motto}
+                logoUrl={form.logoUrl}
+                faviconUrl={form.faviconUrl}
+              />
+            </section>
+            )}
 
+            {showSection('adsense') && (
             <div className="space-y-2 border-t pt-4">
               <Label htmlFor="adsensePublisherId">Google AdSense Publisher ID</Label>
               <Input
@@ -872,7 +1038,9 @@ export default function PlatformSettingsPage() {
                 bukan seluruh tag HTML.
               </p>
             </div>
+            )}
 
+            {showSection('author-access') && (
             <div className="flex items-start gap-2 border-t pt-4">
               <input type="checkbox" id="lockStudio" checked={form.lockStudio} onChange={(e) => updateField('lockStudio', e.target.checked)} className="mt-1" />
               <div>
@@ -882,7 +1050,9 @@ export default function PlatformSettingsPage() {
                 </p>
               </div>
             </div>
+            )}
 
+            {showSection('reader-rules') && (
             <div className="space-y-1.5 border-t pt-4">
               <Label htmlFor="maxFreeChapters">Maximum Free Chapter</Label>
               <Input id="maxFreeChapters" type="number" min={0} value={form.maxFreeChapters} onChange={(e) => updateField('maxFreeChapters', e.target.value)} className="max-w-[160px]" />
@@ -1005,7 +1175,9 @@ export default function PlatformSettingsPage() {
                 </p>
               </div>
             </div>
+            )}
 
+            {showSection('content-protection') && (
             <div className="space-y-3 border-t pt-4">
               <div>
                 <Label>Perlindungan konten</Label>
@@ -1058,7 +1230,9 @@ export default function PlatformSettingsPage() {
                 </div>
               </div>
             </div>
+            )}
 
+            {showSection('seo') && (
             <div className="space-y-3 border-t pt-4">
               <div>
                 <Label>Default SEO</Label>
@@ -1132,7 +1306,9 @@ export default function PlatformSettingsPage() {
                 <SeoTemplateField id="seoSuffix" label="Suffix" value={form.seoSuffix} onChange={(value) => updateField('seoSuffix', value)} placeholder="Bookpedia" />
               </div>
             </div>
+            )}
 
+            {showSection('legal') && (
             <div className="space-y-3 border-t pt-4">
               <div>
                 <Label htmlFor="aboutContent">Tentang Platform</Label>
@@ -1142,7 +1318,9 @@ export default function PlatformSettingsPage() {
               </div>
               <TermsAndConditionsEditor value={form.aboutContent} onChange={(value) => updateField('aboutContent', value)} disabled={submitting} toolbarLabel="Format konten Tentang Platform" />
             </div>
+            )}
 
+            {showSection('legal') && (
             <div className="space-y-3 border-t pt-4">
               <div>
                 <Label htmlFor="termsAndConditions">Terms &amp; Conditions</Label>
@@ -1152,7 +1330,9 @@ export default function PlatformSettingsPage() {
               </div>
               <TermsAndConditionsEditor value={form.termsAndConditions} onChange={(value) => updateField('termsAndConditions', value)} disabled={submitting} />
             </div>
+            )}
 
+            {showSection('legal') && (
             <div className="space-y-3 border-t pt-4">
               <div>
                 <Label htmlFor="privacyPolicy">Kebijakan Privasi</Label>
@@ -1171,7 +1351,9 @@ export default function PlatformSettingsPage() {
               </div>
               <TermsAndConditionsEditor value={form.privacyPolicy} onChange={(value) => updateField('privacyPolicy', value)} disabled={submitting} toolbarLabel="Format konten Kebijakan Privasi" />
             </div>
+            )}
 
+            {showSection('legal') && (
             <div className="space-y-3 border-t pt-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -1200,7 +1382,7 @@ export default function PlatformSettingsPage() {
               {editingTemplateId === 'new' || editingTemplateId !== null ? (
                 <div className="space-y-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="dt-nama">Nama Template</Label>
+                    <Label htmlFor="dt-nama">Nama Template *</Label>
                     <Input
                       id="dt-nama"
                       value={templateForm.nama}
@@ -1211,7 +1393,7 @@ export default function PlatformSettingsPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="dt-content">Konten Disclaimer</Label>
+                    <Label htmlFor="dt-content">Konten Disclaimer *</Label>
                     <Textarea
                       id="dt-content"
                       value={templateForm.content}
@@ -1341,7 +1523,9 @@ export default function PlatformSettingsPage() {
                 </table>
               </div>
             </div>
+            )}
 
+            {showSection('typography') && (
             <div className="space-y-3 border-t pt-4">
               <div>
                 <Label>Tipografi bacaan</Label>
@@ -1349,7 +1533,9 @@ export default function PlatformSettingsPage() {
               </div>
               <ReadingTypographySettings value={form.readingTypography} onChange={(value) => updateField('readingTypography', value)} disabled={submitting} />
             </div>
+            )}
 
+            {showSection('ads') && (
             <div className="space-y-4 border-t pt-4">
               <div>
                 <Label>Iklan</Label>
@@ -1399,7 +1585,9 @@ export default function PlatformSettingsPage() {
                 </div>
               ))}
             </div>
+            )}
 
+            {showSection('contact') && (
             <div className="space-y-3 border-t pt-4">
               <div>
                 <Label>Kontak</Label>
@@ -1420,8 +1608,9 @@ export default function PlatformSettingsPage() {
                 </div>
               </div>
             </div>
+            )}
 
-            {!isCreating && isOwner && (
+            {section === 'owner-wallet' && !isCreating && isOwner && (
               <div className="space-y-4 border-t pt-4">
                 <div>
                   <Label>Wallet penerima donasi Platform</Label>
@@ -1499,7 +1688,7 @@ export default function PlatformSettingsPage() {
               </div>
             )}
 
-            {!isCreating && (
+            {showSection('search-console') && !isCreating && (
               <div className="space-y-3 border-t pt-4">
                 <div>
                   <Label>Verifikasi Google Search Console</Label>
@@ -1532,7 +1721,7 @@ export default function PlatformSettingsPage() {
               </div>
             )}
 
-            {!isCreating && (
+            {showSection('android') && !isCreating && (
               <div className="space-y-3 border-t pt-4">
                 <div>
                   <Label>Android App Links (TWA)</Label>
@@ -1579,26 +1768,49 @@ export default function PlatformSettingsPage() {
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="submit" disabled={submitting || logoUploading || faviconUploading || notificationSoundUploading || loginBackgroundUploading}>
+            {sectionCanSave && (
+            <div className="flex flex-col-reverse justify-between gap-3 border-t pt-4 sm:flex-row sm:items-center">
+              <p className="text-xs text-muted-foreground">
+                {formIsDirty ? 'Draft perubahan hanya diterapkan setelah disimpan.' : 'Tidak ada perubahan draft.'}
+              </p>
+              <div className="flex justify-end gap-2">
+                {formIsDirty && savedFormState?.platformId === selectedPlatform.id && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={submitting || isUploadingAsset}
+                    onClick={() => {
+                      setForm(savedFormState.form);
+                      setSlugTouched(true);
+                    }}
+                  >
+                    Buang perubahan
+                  </Button>
+                )}
+                <Button type="submit" disabled={submitting || isUploadingAsset}>
                 {submitting
                   ? 'Menyimpan…'
-                  : logoUploading || faviconUploading || notificationSoundUploading || loginBackgroundUploading
+                  : isUploadingAsset
                     ? 'Menunggu upload…'
                     : isCreating
                       ? 'Buat Platform'
                       : 'Simpan Perubahan'}
-              </Button>
+                </Button>
+              </div>
             </div>
+            )}
           </form>
         </CardContent>
       </Card>
+      )}
 
-      {!isCreating && selectedPlatform && (
-        <Card className="mt-6">
+      {section === 'domain' && !isCreating && selectedPlatform && (
+        <Card className="mt-4">
           <CardHeader>
             <CardTitle>Domain Kustom</CardTitle>
-            <CardDescription>Domain milik Anda sendiri untuk Platform ini (mis. teknobuku.com). Isi lalu klik &ldquo;Simpan &amp; Verifikasi&rdquo;.</CardDescription>
+            <CardDescription>
+              Opsional. Hubungkan domain milik Anda sendiri ke Platform ini (mis. teknobuku.com), lalu simpan dan verifikasi kepemilikannya lewat DNS. HTTPS/TLS tetap dikonfigurasi melalui penyedia domain Anda.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -1698,11 +1910,9 @@ export default function PlatformSettingsPage() {
         </Card>
       )}
 
-      {!isCreating && selectedPlatform && (
-        <div className="mt-6">
-          <PlatformBuildsSection />
-        </div>
-      )}
+      {section === 'android' && !isCreating && selectedPlatform && <PlatformBuildsSection />}
     </div>
   );
 }
+
+export default PlatformSettingsPage;

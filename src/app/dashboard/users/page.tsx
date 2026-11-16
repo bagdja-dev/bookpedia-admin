@@ -7,8 +7,12 @@ import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { EmptyState } from '@/components/admin/empty-state';
+import { ErrorState } from '@/components/admin/error-state';
+import { PageHeader } from '@/components/admin/page-header';
 import { usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient } from '@/lib/api-client';
 import type { PlatformUserActivity, PlatformUserActivityResponse } from '@/lib/types';
@@ -34,6 +38,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
 
   const loadUsers = useCallback(async () => {
@@ -43,6 +48,7 @@ export default function UsersPage() {
       return;
     }
     setLoading(true);
+    setLoadError(null);
     try {
       const params = new URLSearchParams({ page: '1', limit: '50' });
       if (query.trim()) params.set('search', query.trim());
@@ -52,7 +58,7 @@ export default function UsersPage() {
       setItems(response.items);
       setTotal(response.total);
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : 'Gagal memuat daftar user.');
+      setLoadError(error instanceof ApiError ? error.message : 'Gagal memuat daftar user.');
     } finally {
       setLoading(false);
     }
@@ -88,11 +94,15 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Users"
+        description={`Aktivitas pembaca dan penulis di Platform ${activePlatform.nama}.`}
+      />
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5" /> Users</CardTitle>
+          <CardTitle className="flex items-center gap-2"><UserRound className="h-5 w-5" /> Daftar pengguna</CardTitle>
           <CardDescription>
-            User yang berinteraksi dengan Platform <strong>{activePlatform.nama}</strong>. Total {total} user.
+            {loading || loadError ? 'Ringkasan aktivitas pengguna Platform.' : `Total ${total} pengguna.`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -107,11 +117,16 @@ export default function UsersPage() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama, email, username, atau user ID" className="pl-9" />
             </div>
-            <button type="submit" className="rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">Cari</button>
+            <Button type="submit" disabled={loading}>Cari</Button>
           </form>
 
-          {loading ? <LoadingSpinner /> : items.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Belum ada user yang berinteraksi di Platform ini.</p>
+          {loading ? <LoadingSpinner /> : loadError ? (
+            <ErrorState title="Daftar pengguna gagal dimuat" description={loadError} onRetry={() => void loadUsers()} />
+          ) : items.length === 0 ? (
+            <EmptyState
+              title={query ? 'Pengguna tidak ditemukan' : 'Belum ada aktivitas pengguna'}
+              description={query ? 'Coba kata kunci lain, atau kosongkan pencarian untuk melihat semua pengguna.' : 'Pengguna akan tercatat di sini setelah berinteraksi dengan Platform.'}
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-sm">

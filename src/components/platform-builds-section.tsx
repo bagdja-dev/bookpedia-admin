@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, Download, Eye, EyeOff, Play, RefreshCw, Rocket, Save } from 'lucide-react';
 
 import { ImageUpload } from '@/components/image-upload';
@@ -25,14 +25,14 @@ import type {
 } from '@/lib/types';
 
 const statusLabels: Record<PlatformBuildJobStatus, string> = {
-  queued: 'Queued',
-  validating: 'Validating',
-  building: 'Building',
-  signing: 'Signing',
-  uploading: 'Uploading',
-  success: 'Success',
-  failed: 'Failed',
-  cancelled: 'Cancelled',
+  queued: 'Antrean',
+  validating: 'Validasi',
+  building: 'Membangun',
+  signing: 'Menandatangani',
+  uploading: 'Mengunggah',
+  success: 'Berhasil',
+  failed: 'Gagal',
+  cancelled: 'Dibatalkan',
 };
 
 const statusTone: Record<PlatformBuildJobStatus, string> = {
@@ -106,6 +106,8 @@ export function PlatformBuildsSection() {
   const [submitting, setSubmitting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusRefreshWarning, setStatusRefreshWarning] = useState<string | null>(null);
+  const jobsRequestId = useRef(0);
   const [configId, setConfigId] = useState<string | null>(null);
   const [keystoreProfiles, setKeystoreProfiles] = useState<PlatformKeystoreProfile[]>([]);
   const [keystoreFile, setKeystoreFile] = useState<File | null>(null);
@@ -138,30 +140,40 @@ export function PlatformBuildsSection() {
     keyPassword: '',
   });
 
-  async function loadJobs() {
-    if (!activePlatform) return;
+  const activePlatformId = activePlatform?.id;
+  const loadJobs = useCallback(async () => {
+    if (!activePlatformId) return;
+    const requestId = ++jobsRequestId.current;
     setLoadingJobs(true);
     setError(null);
     try {
-      const data = await apiClient<PlatformBuildJob[]>(`/platform-builds/jobs?platformId=${activePlatform.id}`);
+      const data = await apiClient<PlatformBuildJob[]>(`/platform-builds/jobs?platformId=${activePlatformId}`);
+      let failedStatusRefreshes = 0;
       const refreshedJobs = await Promise.all(data.map(async (job) => {
         if (!job.external_job_id) return job;
         try {
-          return await apiClient<PlatformBuildJob>(`/platform-builds/jobs/${job.id}/status?platformId=${activePlatform.id}`);
+          return await apiClient<PlatformBuildJob>(`/platform-builds/jobs/${job.id}/status?platformId=${activePlatformId}`);
         } catch {
+          failedStatusRefreshes += 1;
           return job;
         }
       }));
+      if (requestId !== jobsRequestId.current) return;
       setJobs(refreshedJobs);
+      setStatusRefreshWarning(failedStatusRefreshes
+        ? `Status ${failedStatusRefreshes} build belum dapat diperbarui. Data terakhir yang tersimpan tetap ditampilkan.`
+        : null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Tidak dapat memuat build job.');
+      if (requestId === jobsRequestId.current) {
+        setError(err instanceof ApiError ? err.message : 'Tidak dapat memuat build job.');
+      }
     } finally {
-      setLoadingJobs(false);
+      if (requestId === jobsRequestId.current) setLoadingJobs(false);
     }
-  }
+  }, [activePlatformId]);
 
   useEffect(() => {
-    if (!activePlatform || !jobs.some((job) => job.external_job_id && ['queued', 'validating', 'building', 'signing', 'uploading'].includes(job.status))) {
+    if (!activePlatformId || !jobs.some((job) => job.external_job_id && ['queued', 'validating', 'building', 'signing', 'uploading'].includes(job.status))) {
       return;
     }
 
@@ -170,13 +182,16 @@ export function PlatformBuildsSection() {
       const activeJobs = jobs.filter((job) => job.external_job_id && ['queued', 'validating', 'building', 'signing', 'uploading'].includes(job.status));
       const refreshed = await Promise.all(activeJobs.map(async (job) => {
         try {
-          return [job.id, await apiClient<PlatformBuildJob>(`/platform-builds/jobs/${job.id}/status?platformId=${activePlatform.id}`)] as const;
+          return [job.id, await apiClient<PlatformBuildJob>(`/platform-builds/jobs/${job.id}/status?platformId=${activePlatformId}`)] as const;
         } catch {
           return [job.id, null] as const;
         }
       }));
       if (cancelled) return;
       const byId = new Map(refreshed.filter((entry): entry is readonly [string, PlatformBuildJob] => entry[1] !== null));
+      setStatusRefreshWarning(byId.size < activeJobs.length
+        ? 'Status satu atau beberapa build belum dapat diperbarui. Data terakhir yang tersimpan tetap ditampilkan.'
+        : null);
       if (byId.size) {
         setJobs((current) => current.map((job) => byId.get(job.id) ?? job));
       }
@@ -187,13 +202,15 @@ export function PlatformBuildsSection() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [activePlatform?.id, jobs]);
+  }, [activePlatformId, jobs]);
 
   useEffect(() => {
+    let cancelled = false;
     if (!activePlatform) {
       setJobs([]);
       setKeystoreProfiles([]);
       setConfigId(null);
+      setStatusRefreshWarning(null);
       return;
     }
     setJobs([]);
@@ -229,6 +246,7 @@ export function PlatformBuildsSection() {
       apiClient<PlatformKeystoreProfile[]>(`/platform-builds/platforms/${activePlatform.id}/keystore-profiles`),
       loadJobs(),
     ]).then(([configs, profiles]) => {
+      if (cancelled) return;
       const config = configs.find((item) => item.environment === 'prod') ?? configs[0];
       setKeystoreProfiles(profiles);
       if (config) {
@@ -265,9 +283,13 @@ export function PlatformBuildsSection() {
         }));
       }
     }).catch((err: unknown) => {
-      setError(err instanceof ApiError ? err.message : 'Gagal memuat pengaturan build.');
+      if (!cancelled) setError(err instanceof ApiError ? err.message : 'Gagal memuat pengaturan build.');
     });
-  }, [activePlatform?.id]);
+    return () => {
+      cancelled = true;
+      jobsRequestId.current += 1;
+    };
+  }, [activePlatform, loadJobs]);
 
   function buildTheme() {
     return {
@@ -429,11 +451,11 @@ export function PlatformBuildsSection() {
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
         <div>
-          <CardTitle className="flex items-center gap-2"><Rocket className="h-5 w-5" /> Platform Build</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Rocket className="h-5 w-5" /> Build Platform</CardTitle>
           <CardDescription>Build TWA untuk platform aktif dan riwayat artifact-nya.</CardDescription>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={() => void loadJobs()} disabled={loadingJobs || !activePlatform}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loadingJobs ? 'animate-spin' : ''}`} /> Refresh
+          <RefreshCw className={`mr-2 h-4 w-4 ${loadingJobs ? 'animate-spin' : ''}`} /> Muat ulang
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -586,7 +608,8 @@ export function PlatformBuildsSection() {
             </section>
 
             {!isOwner && <p className="text-sm text-muted-foreground">Hanya Owner yang dapat memulai build.</p>}
-            {error && <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
+            {error && <div role="alert" className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
+            {statusRefreshWarning && <p role="status" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{statusRefreshWarning}</p>}
             {needsKeystore && <p className="text-sm text-muted-foreground">Build release membutuhkan keystore profile dengan password yang sudah disimpan. Pilih APK Debug untuk build testing tanpa keystore.</p>}
             <div className="flex flex-col gap-2 border-b pb-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-end">
               <div className="space-y-1.5 sm:mr-auto sm:w-72">
@@ -605,13 +628,13 @@ export function PlatformBuildsSection() {
 
             <section className="space-y-3">
               <div>
-                <h3 className="text-base font-semibold">Build history</h3>
+                <h3 className="text-base font-semibold">Riwayat build</h3>
                 <p className="text-sm text-muted-foreground">Riwayat build untuk {activePlatform.nama}.</p>
               </div>
               {loadingJobs ? (
-                <p className="py-8 text-sm text-muted-foreground">Memuat build history...</p>
+                <p className="py-8 text-sm text-muted-foreground">Memuat riwayat build…</p>
               ) : jobs.length === 0 ? (
-                <p className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">Belum ada build yang dijalankan untuk platform ini.</p>
+                <p className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">Belum ada build yang dijalankan untuk Platform ini.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>

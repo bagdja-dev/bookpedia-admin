@@ -19,7 +19,7 @@ import type { Platform, PlatformsResponse, PlatformOwnerOrganization } from '@/l
  * "Yang aktif" disimpan di React Context +
  * `localStorage`, dipilih lewat dropdown Topbar — bukan navigasi
  * `/dashboard/[platformId]/...`. Semua halaman platform-scoped
- * (`platform-settings`, `staff`) flat route, ambil `activePlatform` dari
+ * (`platform-settings` sections, `staff`) route, ambil `activePlatform` dari
  * context ini.
  */
 export const ACTIVE_PLATFORM_STORAGE_KEY = 'na_active_platform';
@@ -32,6 +32,7 @@ interface PlatformContextValue {
   canCreatePlatform: boolean;
   ownedOrganizations: PlatformOwnerOrganization[];
   loading: boolean;
+  error: string | null;
   switchPlatform: (platformId: string) => void;
   refresh: () => Promise<void>;
 }
@@ -44,8 +45,10 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   const [canCreatePlatform, setCanCreatePlatform] = useState(false);
   const [ownedOrganizations, setOwnedOrganizations] = useState<PlatformOwnerOrganization[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    setError(null);
     try {
       const data = await apiClient<PlatformsResponse>('/platforms');
       setPlatforms(data.platforms);
@@ -58,11 +61,8 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
           : null;
       const found = data.platforms.find((p) => p.id === savedId);
       setActivePlatform(found ?? data.platforms[0] ?? null);
-    } catch {
-      setPlatforms([]);
-      setCanCreatePlatform(false);
-      setOwnedOrganizations([]);
-      setActivePlatform(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Gagal memuat daftar Platform.');
     } finally {
       setLoading(false);
     }
@@ -92,10 +92,11 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       canCreatePlatform,
       ownedOrganizations,
       loading,
+      error,
       switchPlatform,
       refresh,
     }),
-    [platforms, activePlatform, canCreatePlatform, ownedOrganizations, loading, switchPlatform, refresh],
+    [platforms, activePlatform, canCreatePlatform, ownedOrganizations, loading, error, switchPlatform, refresh],
   );
 
   return <PlatformContext.Provider value={value}>{children}</PlatformContext.Provider>;

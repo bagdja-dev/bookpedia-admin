@@ -2,10 +2,13 @@
 
 import Link from 'next/link';
 import { ArrowLeft, BookOpen, UserRound } from 'lucide-react';
-import { use, useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { use, useCallback, useEffect, useRef, useState } from 'react';
 
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { EmptyState } from '@/components/admin/empty-state';
+import { ErrorState } from '@/components/admin/error-state';
+import { PageHeader } from '@/components/admin/page-header';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient } from '@/lib/api-client';
@@ -35,41 +38,61 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
   const { activePlatform, loading: platformLoading } = usePlatformContext();
   const [profile, setProfile] = useState<PlatformUserReadingResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const requestId = useRef(0);
 
-  useEffect(() => {
+  const loadProfile = useCallback(async () => {
     if (!activePlatform) return;
-    let cancelled = false;
+    const currentRequestId = ++requestId.current;
     setLoading(true);
-    apiClient<PlatformUserReadingResponse>(
-      `/platforms/${activePlatform.id}/users/${encodeURIComponent(userId)}/reading`,
-    )
-      .then((data) => {
-        if (!cancelled) setProfile(data);
-      })
-      .catch((error) => {
-        if (!cancelled) toast.error(error instanceof ApiError ? error.message : 'Gagal memuat statistik user.');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    setLoadError(null);
+    try {
+      const data = await apiClient<PlatformUserReadingResponse>(
+        `/platforms/${activePlatform.id}/users/${encodeURIComponent(userId)}/reading`,
+      );
+      if (currentRequestId !== requestId.current) return;
+      setProfile(data);
+    } catch (error) {
+      if (currentRequestId !== requestId.current) return;
+      setLoadError(error instanceof ApiError ? error.message : 'Gagal memuat statistik user.');
+    } finally {
+      if (currentRequestId === requestId.current) setLoading(false);
+    }
   }, [activePlatform, userId]);
 
-  if (platformLoading || loading) return <LoadingSpinner label="Memuat statistik user…" />;
+  useEffect(() => {
+    void loadProfile();
+    return () => {
+      requestId.current += 1;
+    };
+  }, [loadProfile]);
 
-  if (!activePlatform || !profile) {
-    return <p className="text-sm text-destructive">Statistik user tidak tersedia.</p>;
+  if (platformLoading || (activePlatform && loading)) return <LoadingSpinner label="Memuat statistik user…" />;
+
+  if (!activePlatform) {
+    return <EmptyState title="Belum ada Platform aktif" description="Pilih Platform terlebih dahulu untuk melihat aktivitas pengguna." />;
   }
 
-  const displayName = profile.displayName || profile.username || profile.email || 'User';
+  const displayName = profile ? profile.displayName || profile.username || profile.email || 'User' : 'Detail User';
 
   return (
     <div className="space-y-6">
-      <Link href="/dashboard/users" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Kembali ke Users
-      </Link>
+      <PageHeader
+        title="Aktivitas pengguna"
+        description={`Riwayat ${displayName} di Platform ${activePlatform.nama}.`}
+        actions={
+          <Button type="button" variant="outline" asChild>
+            <Link href="/dashboard/users"><ArrowLeft className="mr-2 h-4 w-4" /> Kembali ke Users</Link>
+          </Button>
+        }
+      />
+
+      {loadError ? (
+        <ErrorState title="Statistik pengguna gagal dimuat" description={loadError} onRetry={() => void loadProfile()} />
+      ) : !profile ? (
+        <EmptyState title="Data pengguna tidak tersedia" description="Pengguna mungkin tidak lagi memiliki aktivitas di Platform ini." />
+      ) : (
+      <div className="space-y-6">
 
       <Card>
         <CardHeader>
@@ -99,7 +122,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
         </CardHeader>
         <CardContent>
           {profile.readingList.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Belum ada reading list di Platform ini.</p>
+            <EmptyState title="Belum ada reading list" description="Book yang pernah dibaca pengguna akan muncul di sini." />
           ) : (
             <div className="space-y-3">
               {profile.readingList.map((item) => (
@@ -131,6 +154,8 @@ export default function UserDetailPage({ params }: { params: Promise<{ userId: s
           )}
         </CardContent>
       </Card>
+      </div>
+      )}
     </div>
   );
 }

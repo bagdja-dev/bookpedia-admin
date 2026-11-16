@@ -1,135 +1,291 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { BookOpen, ChevronLeft, ChevronRight, Heart, History, LayoutDashboard, Library, PanelsTopLeft, Settings, Tag, UserRound, Users, X } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  History,
+  LayoutDashboard,
+  Library,
+  PanelsTopLeft,
+  Tag,
+  UserRound,
+  Users,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { usePlatformContext } from '@/context/platform-context';
+import { PLATFORM_SETTINGS_NAV_GROUPS, PLATFORM_SETTINGS_NAV_ITEMS, platformSettingsPath } from '@/lib/platform-settings-navigation';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Mode ringkas (icon-only) — hanya berlaku di layar besar (lg+), drawer mobile selalu penuh. */
   collapsed: boolean;
   onToggleCollapsed: () => void;
 }
 
-const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, ownerOnly: false },
-  { href: '/dashboard/homepage', label: 'Homepage', icon: PanelsTopLeft, ownerOnly: false },
-  { href: '/dashboard/genres', label: 'Genres', icon: Library, ownerOnly: false },
-  { href: '/dashboard/categories', label: 'Categories', icon: Tag, ownerOnly: false },
-  { href: '/dashboard/donations', label: 'Donasi Platform', icon: Heart, ownerOnly: false },
-  { href: '/dashboard/donations/history', label: 'Riwayat Donasi', icon: History, ownerOnly: false },
-  { href: '/dashboard/users', label: 'Users', icon: UserRound, ownerOnly: false },
-  { href: '/dashboard/staff', label: 'Staff', icon: Users, ownerOnly: true },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  ownerOnly?: boolean;
+}
+
+interface NavGroup {
+  id: string;
+  label: string;
+  items: NavItem[];
+  subgroups?: {
+    id: string;
+    label: string;
+    items: NavItem[];
+  }[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: 'overview',
+    label: 'Ringkasan',
+    items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
+  },
+  {
+    id: 'content',
+    label: 'Konten & Katalog',
+    items: [
+      { href: '/dashboard/homepage', label: 'Homepage', icon: PanelsTopLeft },
+      { href: '/dashboard/genres', label: 'Genres', icon: Library },
+      { href: '/dashboard/categories', label: 'Categories', icon: Tag },
+    ],
+  },
+  {
+    id: 'growth',
+    label: 'Pertumbuhan & Pendapatan',
+    items: [
+      { href: '/dashboard/donations', label: 'Donasi Platform', icon: Heart },
+      { href: '/dashboard/donations/history', label: 'Riwayat Donasi', icon: History },
+    ],
+  },
+  {
+    id: 'readers',
+    label: 'Pembaca',
+    items: [{ href: '/dashboard/users', label: 'Users', icon: UserRound }],
+  },
+  {
+    id: 'platform',
+    label: 'Platform Settings',
+    items: PLATFORM_SETTINGS_NAV_ITEMS.map((item) => ({
+      href: platformSettingsPath(item.section),
+      label: item.label,
+      icon: item.icon,
+      ...('ownerOnly' in item ? { ownerOnly: item.ownerOnly } : {}),
+    })),
+    subgroups: PLATFORM_SETTINGS_NAV_GROUPS.map((group) => ({
+      id: group.id,
+      label: group.label,
+      items: group.items.map((item) => ({
+        href: platformSettingsPath(item.section),
+        label: item.label,
+        icon: item.icon,
+        ...('ownerOnly' in item ? { ownerOnly: item.ownerOnly } : {}),
+      })),
+    })),
+  },
+  {
+    id: 'access',
+    label: 'Akses',
+    items: [{ href: '/dashboard/staff', label: 'Staff', icon: Users, ownerOnly: true }],
+  },
 ];
 
-const SETTINGS_ITEM = {
-  href: '/dashboard/platform-settings',
-  label: 'Platform Settings',
-  icon: Settings,
-};
+function isItemActive(pathname: string | null, href: string) {
+  if (href.startsWith('/dashboard/platform-settings/')) return pathname === href;
+  const route = href;
+  if (route === '/dashboard') return pathname === route;
+  return pathname === route || Boolean(pathname?.startsWith(`${route}/`));
+}
 
 export function Sidebar({ isOpen, onClose, collapsed, onToggleCollapsed }: SidebarProps) {
   const pathname = usePathname();
   const { isOwner } = usePlatformContext();
+  const activeGroupId = NAV_GROUPS.find((group) => group.items.some((item) => isItemActive(pathname, item.href)))?.id
+    ?? (pathname?.startsWith('/dashboard/platform-settings') ? 'platform' : undefined);
+  const [groupState, setGroupState] = useState<{ pathname: string | null; ids: string[] } | null>(null);
+  const expandedGroups = groupState?.pathname === pathname
+    ? groupState.ids
+    : activeGroupId ? [activeGroupId] : [];
 
-  const items = NAV_ITEMS.filter((item) => !item.ownerOnly || isOwner);
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  function toggleGroup(groupId: string) {
+    const groups = groupState?.pathname === pathname
+      ? groupState.ids
+      : activeGroupId ? [activeGroupId] : [];
+    setGroupState({
+      pathname,
+      ids: groups.includes(groupId) ? groups.filter((id) => id !== groupId) : [...groups, groupId],
+    });
+  }
+
+  function renderNavItem(item: NavItem) {
+    const Icon = item.icon;
+    const active = isItemActive(pathname, item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={onClose}
+        title={collapsed ? item.label : undefined}
+        aria-label={item.label}
+        aria-current={active ? 'page' : undefined}
+        className={cn(
+          'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar',
+          collapsed && 'lg:justify-center lg:px-2',
+          active
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+            : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground',
+        )}
+      >
+        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span className={cn(collapsed && 'lg:hidden')}>{item.label}</span>
+      </Link>
+    );
+  }
 
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+        <button
+          type="button"
+          className="fixed inset-0 z-40 cursor-default bg-black/40 lg:hidden"
           onClick={onClose}
+          aria-label="Tutup menu navigasi"
         />
       )}
 
       <aside
+        id="primary-navigation"
+        aria-label="Navigasi utama"
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform lg:static lg:translate-x-0 lg:transition-[width]',
+          'fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform lg:static lg:translate-x-0 lg:transition-[width]',
           isOpen ? 'translate-x-0' : '-translate-x-full',
           collapsed && 'lg:w-16',
         )}
       >
-        <div className={cn('flex h-16 items-center px-4', collapsed ? 'lg:justify-center lg:px-0' : 'justify-between')}>
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <BookOpen className="h-4 w-4" />
-            </div>
-            <span className={cn('text-sm font-bold tracking-tight', collapsed && 'lg:hidden')}>
-              Bookpedia Admin
-            </span>
-          </div>
-          <button
+        <div className={cn('flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-4', collapsed && 'lg:justify-center lg:px-0')}>
+          <Link
+            href="/dashboard"
             onClick={onClose}
-            className={cn('rounded-lg p-1.5 hover:bg-sidebar-accent lg:hidden', collapsed && 'lg:hidden')}
-            aria-label="Tutup menu"
+            title={collapsed ? 'Bookpedia Admin' : undefined}
+            className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            aria-label="Bookpedia Admin"
           >
-            <X className="h-4 w-4" />
+            <Image
+              src="/bookpedia-logo.png"
+              alt=""
+              width={40}
+              height={40}
+              className="h-8 w-8 shrink-0 object-contain"
+            />
+            <span className={cn('min-w-0', collapsed && 'lg:hidden')}>
+              <span className="block text-[11px] font-bold leading-tight tracking-[0.12em]">BOOKPEDIA</span>
+              <span className="mt-0.5 block text-[9px] font-medium leading-tight tracking-[0.12em] text-muted-foreground">
+                ADMIN · EDITORIAL
+              </span>
+            </span>
+          </Link>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-2 transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring lg:hidden"
+            aria-label="Tutup menu navigasi"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4">
-          {items.map((item) => {
-            const Icon = item.icon;
-            const active = item.href === '/dashboard' || item.href === '/dashboard/donations'
-              ? pathname === item.href
-              : pathname?.startsWith(item.href);
+        <nav className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4">
+          <p className={cn('px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground', collapsed && 'lg:hidden')}>
+            Navigasi
+          </p>
+          {NAV_GROUPS.map((group) => {
+            const visibleItems = group.items.filter((item) => (
+              !item.ownerOnly || isOwner
+            ));
+            const visibleSubgroups = group.subgroups?.map((subgroup) => ({
+              ...subgroup,
+              items: subgroup.items.filter((item) => !item.ownerOnly || isOwner),
+            })).filter((subgroup) => subgroup.items.length > 0);
+            if (visibleItems.length === 0) return null;
+
+            const isExpanded = expandedGroups.includes(group.id);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                title={collapsed ? item.label : undefined}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  collapsed && 'lg:justify-center lg:px-2',
-                  active
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className={cn(collapsed && 'lg:hidden')}>{item.label}</span>
-              </Link>
+              <section key={group.id} aria-label={group.label}>
+                <button
+                  type="button"
+                  className={cn(
+                    'flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
+                    collapsed && 'lg:hidden',
+                  )}
+                  onClick={() => toggleGroup(group.id)}
+                  aria-expanded={isExpanded}
+                  aria-controls={`sidebar-group-${group.id}`}
+                >
+                  {group.label}
+                  <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', isExpanded && 'rotate-180')} aria-hidden="true" />
+                </button>
+                <div
+                  id={`sidebar-group-${group.id}`}
+                  className={cn(
+                    'space-y-1',
+                    isExpanded ? 'block' : 'hidden',
+                    collapsed && 'lg:block',
+                  )}
+                >
+                  {visibleSubgroups
+                    ? visibleSubgroups.map((subgroup) => (
+                      <div key={subgroup.id} className="space-y-1">
+                        <p className={cn(
+                          'px-3 pt-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground',
+                          collapsed && 'lg:hidden',
+                        )}>
+                          {subgroup.label}
+                        </p>
+                        {subgroup.items.map(renderNavItem)}
+                      </div>
+                    ))
+                    : visibleItems.map(renderNavItem)}
+                </div>
+              </section>
             );
           })}
         </nav>
 
-        <div className="border-t border-sidebar-border p-3">
-          <Link
-            href={SETTINGS_ITEM.href}
-            onClick={onClose}
-            title={collapsed ? SETTINGS_ITEM.label : undefined}
-            className={cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              collapsed && 'lg:justify-center lg:px-2',
-              pathname?.startsWith(SETTINGS_ITEM.href)
-                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-            )}
-          >
-            <SETTINGS_ITEM.icon className="h-4 w-4 shrink-0" />
-            <span className={cn(collapsed && 'lg:hidden')}>{SETTINGS_ITEM.label}</span>
-          </Link>
-        </div>
-
-        {/* Toggle collapse — cuma relevan di layar besar, drawer mobile selalu full-width */}
-        <div className="hidden border-t border-sidebar-border p-3 lg:block">
+        <div className="hidden shrink-0 border-t border-sidebar-border p-3 lg:block">
           <button
+            type="button"
             onClick={onToggleCollapsed}
             className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
               collapsed && 'justify-center px-2',
             )}
             aria-label={collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
             title={collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
           >
-            {collapsed ? <ChevronRight className="h-4 w-4 shrink-0" /> : <ChevronLeft className="h-4 w-4 shrink-0" />}
+            {collapsed ? <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" /> : <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden="true" />}
             {!collapsed && 'Ciutkan'}
           </button>
         </div>

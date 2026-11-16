@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Heart, RefreshCw, Search, Users } from 'lucide-react';
-import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { PageHeader } from '@/components/admin/page-header';
+import { ErrorState } from '@/components/admin/error-state';
+import { EmptyState } from '@/components/admin/empty-state';
 import { usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient } from '@/lib/api-client';
 import type { PlatformDonation, PlatformDonationListResponse } from '@/lib/types';
@@ -82,6 +84,7 @@ export default function DonationHistoryPage() {
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadDonations = useCallback(async () => {
     if (!activePlatform) {
@@ -92,6 +95,7 @@ export default function DonationHistoryPage() {
     }
 
     setLoading(true);
+    setLoadError(null);
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
       if (submittedSearch) params.set('search', submittedSearch);
@@ -103,7 +107,7 @@ export default function DonationHistoryPage() {
       setTotal(response.total);
       setSummary(response.summary);
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : 'Gagal memuat riwayat donasi.');
+      setLoadError(error instanceof ApiError ? error.message : 'Gagal memuat riwayat donasi.');
     } finally {
       setLoading(false);
     }
@@ -132,18 +136,20 @@ export default function DonationHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Riwayat Donasi</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Pantau donatur dan pembayaran untuk <strong>{activePlatform.nama}</strong>.
-          </p>
-        </div>
-        <Button type="button" variant="outline" disabled={loading} onClick={() => void loadDonations()}>
-          <RefreshCw className="mr-2 h-4 w-4" /> Muat ulang
-        </Button>
-      </div>
+      <PageHeader
+        title="Riwayat Donasi"
+        description={<>Pantau donatur dan pembayaran untuk <strong>{activePlatform.nama}</strong>.</>}
+        actions={
+          <Button type="button" variant="outline" disabled={loading} onClick={() => void loadDonations()}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Muat ulang
+          </Button>
+        }
+      />
 
+      {loadError ? (
+        <ErrorState title="Riwayat donasi gagal dimuat" description={loadError} onRetry={() => void loadDonations()} />
+      ) : (
+      <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
@@ -217,7 +223,10 @@ export default function DonationHistoryPage() {
           </form>
 
           {loading ? <LoadingSpinner label="Memuat donasi…" /> : items.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Belum ada transaksi donasi yang cocok.</p>
+            <EmptyState
+              title={submittedSearch || status ? 'Transaksi tidak ditemukan' : 'Belum ada transaksi donasi'}
+              description={submittedSearch || status ? 'Ubah pencarian atau filter status untuk melihat transaksi lain.' : 'Transaksi akan muncul di sini setelah pembaca melakukan donasi.'}
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-sm">
@@ -251,6 +260,8 @@ export default function DonationHistoryPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
+      )}
     </div>
   );
 }

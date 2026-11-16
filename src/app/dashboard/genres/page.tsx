@@ -26,6 +26,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { EmptyState } from '@/components/admin/empty-state';
+import { ErrorState } from '@/components/admin/error-state';
+import { PageHeader } from '@/components/admin/page-header';
 import { usePlatformContext } from '@/context/platform-context';
 import { ApiError, apiClient, slugify } from '@/lib/api-client';
 import type { CreateGenrePayload, Genre, UpdateGenrePayload } from '@/lib/types';
@@ -42,6 +45,7 @@ export default function GenresPage() {
 
   const [genres, setGenres] = useState<Genre[]>([]);
   const [genresLoading, setGenresLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Genre | null>(null);
@@ -58,11 +62,12 @@ export default function GenresPage() {
       return;
     }
     setGenresLoading(true);
+    setLoadError(null);
     try {
       const data = await apiClient<Genre[]>(`/platforms/${activePlatform.id}/genres`);
       setGenres(data);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Gagal memuat daftar genre.');
+      setLoadError(err instanceof ApiError ? err.message : 'Gagal memuat daftar genre.');
     } finally {
       setGenresLoading(false);
     }
@@ -160,26 +165,29 @@ export default function GenresPage() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle>Genres</CardTitle>
-            <CardDescription>
-              Kelola Genre milik Platform <strong>{activePlatform.nama}</strong>. Kelompokkan lewat menu Categories.
-            </CardDescription>
-          </div>
-          {isOwner && (
+      <div className="space-y-6">
+        <PageHeader
+          title="Genres"
+          description={<>Kelola Genre milik Platform <strong>{activePlatform.nama}</strong>. Kelompokkan lewat menu Categories.</>}
+          actions={isOwner ? (
             <Button size="sm" onClick={openCreate}>
               <Plus className="mr-1.5 h-4 w-4" />
               Tambah Genre
             </Button>
-          )}
+          ) : undefined}
+        />
+        <Card>
+        <CardHeader>
+          <CardTitle>Daftar Genre</CardTitle>
+          <CardDescription>Genre dipakai di form Book dan filter katalog pembaca.</CardDescription>
         </CardHeader>
         <CardContent>
           {genresLoading ? (
             <LoadingSpinner />
+          ) : loadError ? (
+            <ErrorState title="Genre gagal dimuat" description={loadError} onRetry={() => void loadGenres()} />
           ) : genres.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Belum ada genre dibuat untuk Platform ini.</p>
+            <EmptyState title="Belum ada Genre" description="Tambahkan Genre agar penulis dapat mengategorikan Book dan pembaca dapat memfilter katalog." />
           ) : (
             <Table>
               <TableHeader>
@@ -281,6 +289,7 @@ export default function GenresPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
